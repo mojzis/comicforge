@@ -26,8 +26,8 @@ jobs:
           enable-cache: true
 
       # Plain sync mirrors the canonical `poe check` env. The `inspire` extra
-      # (replicate) is optional and changes ty's inference; its tests are
-      # self-contained, so we don't install it here.
+      # (replicate) is optional and changes ty's inference, so it's exercised in
+      # the separate `extras` job below, not here.
       - name: Sync dependencies
         run: uv sync
 
@@ -56,3 +56,29 @@ jobs:
         if: always()
         continue-on-error: true
         run: uv run poe vulns
+
+  # The `inspire` optional deps (replicate, python-dotenv) aren't unit-tested —
+  # every inspire test is dry-run/pure; the only replicate-touching code path is
+  # a thin API wrapper. This job verifies the extra resolves and imports cleanly
+  # with everything installed, and reruns the suite in that environment.
+  extras:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install cairo
+        run: sudo apt-get update && sudo apt-get install -y libcairo2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Sync with all extras
+        run: uv sync --all-extras
+
+      - name: Import smoke test
+        run: uv run python -c "import replicate, dotenv; import comicforge.inspire"
+
+      - name: Tests
+        run: uv run poe test
