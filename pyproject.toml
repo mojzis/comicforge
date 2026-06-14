@@ -34,6 +34,11 @@ packages = ["comicforge"]
 [tool.hatch.build.targets.wheel.force-include]
 "skills/comicforge" = "comicforge/_skill"
 
+# The wheel above force-includes skills/comicforge; the sdist must therefore
+# carry it too, or the wheel build from the sdist can't find the source.
+[tool.hatch.build.targets.sdist.force-include]
+"skills/comicforge" = "skills/comicforge"
+
 [dependency-groups]
 dev = [
     "ruff",
