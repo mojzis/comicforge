@@ -8,7 +8,8 @@ description: >
   backgrounds, speech/thought/shout bubbles, and pixel-art sprites in a row/panel
   grid. Also triggers on adding a new character, scene, or sprite to a ComicForge
   project, or on questions about the spec grammar, panel coordinates, or the
-  `comicforge` CLI (`render`, `scene`, `panel`, `characters`, `scenes`).
+  `comicforge` CLI (`init`, `render`, `scene`, `panel`, `validate`, `characters`,
+  `scenes`).
 ---
 
 # ComicForge — authoring comics from YAML
@@ -24,6 +25,10 @@ All art belongs to a **project** (e.g. `examples/pes/`) — there is no shared
 library. A project owns `characters/`, `scenes/`, `pixel/`, and its page specs
 under `pages/`. Paths below assume you are working inside one project.
 
+Starting from scratch? `cmf init <dir>` scaffolds those four asset dirs, a
+renderable starter page, and a copy of this skill — a data-only project that
+needs no Python (see [`reference.md`](reference.md)).
+
 1. Read the project's assets:
    - `cmf characters --library examples/pes/characters` → JSON
      of every character, its **slots**, **variants** per slot, and the defaults.
@@ -36,7 +41,12 @@ under `pages/`. Paths below assume you are working inside one project.
    scenes_dir: "../scenes"
    pixel_dir:  "../pixel"
    ```
-3. Render:
+3. Validate before rendering: `cmf validate mystrip.yaml` — checks every actor,
+   scene, pixel sprite, slot variant, pose, and bubble speaker against the
+   libraries without drawing anything, and lists *all* problems at once. Unlike
+   `render`, it flags mis-spelled keys (e.g. `fcae:`) that render silently
+   ignores. Exits non-zero when anything is wrong. Works on page and `scene` specs.
+4. Render:
    - comic page: `cmf render mystrip.yaml -o out.pdf`
    - single illustration: `cmf scene myscene.yaml -o out.png`
    - one character on its own (to eyeball a pose/expression):
@@ -47,7 +57,7 @@ under `pages/`. Paths below assume you are working inside one project.
    - Omit `-o` and the file lands in the gitignored `output/` dir with a
      timestamp (`output/<name>-<YYYYMMDD-HHMMSS>.png`), so renders accumulate and
      you can compare how a page/character evolved. Pass `-o` to choose a path.
-4. Look at the output; adjust `x` / `y` / `scale` / `to` and re-render.
+5. Look at the output; adjust `x` / `y` / `scale` / `to` and re-render.
 
 ## Coordinates
 
@@ -59,6 +69,7 @@ Every position inside a panel is a **fraction 0..1 of that panel**:
 
 ```yaml
 title: "Optional page title"      # bold caption strip at the top
+type: page                        # page (default) | scene — see below
 page: A4                          # A4 | A5 | letter | [w_mm, h_mm]
 px_per_mm: 4                      # raster scale (vector PDF ignores it)
 margin_mm: 14
@@ -115,10 +126,17 @@ Seeds in `examples/pes/`: `dvur` (farmyard, slot `weather: clear|rain`),
 ## Standalone illustration (no comic grid)
 
 Render one scene filling the whole canvas with actors/bubbles on top — good for
-covers and single panels. Render with `comicforge scene file.yaml -o out.png`:
+covers and single panels. Render with `comicforge scene file.yaml -o out.png`.
+
+Set `type: scene` so the spec declares which command renders it: `render`
+rejects a scene spec (and `scene` rejects a page spec) with a clear message
+instead of a confusing crash, and `validate` checks the type matches the
+structure. `type:` is optional — when omitted it's inferred (a top-level
+`scene` with no `rows` == a scene) — but declare it on standalone illustrations.
 
 ```yaml
 title: "Optional"
+type: scene
 scene: {name: dvur, weather: clear}
 scale: 3                    # px per scene unit (canvas = scene viewbox × scale)
 library:    "../characters"

@@ -15,8 +15,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
+
+from rich import print as rich_print
 
 from .library import Library
 from .pixelart import PixelLibrary
@@ -28,6 +30,7 @@ from .render import (
     render_spec,
 )
 from .scene import SceneLibrary
+from .validate import validate_spec
 
 # Where renders land when -o is omitted. Gitignored; filenames carry a timestamp
 # so successive renders accumulate and you can watch a page/character evolve.
@@ -35,7 +38,7 @@ OUTPUT_DIR = Path("output")
 
 
 def _stamp() -> str:
-    return datetime.now().strftime("%Y%m%d-%H%M%S")
+    return datetime.now(UTC).astimezone().strftime("%Y%m%d-%H%M%S")
 
 
 def _default_out(stem: str, ext: str = ".png") -> Path:
@@ -72,16 +75,28 @@ def _parse_selection(char, tokens, pose):
             slot = next((s for s, variants in slots.items() if tok in variants), None)
             if slot is None:
                 raise SystemExit(
-                    f"don't know '{tok}' for {char.name}: not a pose {list(char.poses)} "
-                    f"nor a variant in {slots}"
+                    f"don't know '{tok}' for {char.name}: "
+                    f"not a pose {list(char.poses)} nor a variant in {slots}"
                 )
             selection[slot] = tok
     return selection, pose
 
 
-def main(argv=None):
+def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer linear
     p = argparse.ArgumentParser(prog="comicforge")
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    init = sub.add_parser(
+        "init", help="scaffold a new data-only project (no Python needed)"
+    )
+    init.add_argument(
+        "dest", type=Path, help="directory to create the project in (e.g. ./my-comic)"
+    )
+    init.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite existing files (default: skip files that already exist)",
+    )
 
     r = sub.add_parser("render", help="render a comic page spec")
     r.add_argument("spec", type=Path)
@@ -95,6 +110,20 @@ def main(argv=None):
     r.add_argument("--library", type=Path, default=None)
     r.add_argument("--scenes", type=Path, default=None)
     r.add_argument(
+        "--pixel-dir",
+        type=Path,
+        default=None,
+        dest="pixel_dir",
+        help="pixel-art sprite library directory",
+    )
+
+    v = sub.add_parser(
+        "validate", help="check a page/scene spec against its libraries (no render)"
+    )
+    v.add_argument("spec", type=Path)
+    v.add_argument("--library", type=Path, default=None)
+    v.add_argument("--scenes", type=Path, default=None)
+    v.add_argument(
         "--pixel-dir",
         type=Path,
         default=None,
@@ -174,7 +203,9 @@ def main(argv=None):
     ch.add_argument(
         "--library", type=Path, required=True, help="character library directory"
     )
-    ch.add_argument("--pose", default=None, help="pose to render (default: character's)")
+    ch.add_argument(
+        "--pose", default=None, help="pose to render (default: character's)"
+    )
     ch.add_argument(
         "--scale", type=float, default=2.0, help="px per viewBox unit (default 2)"
     )
@@ -237,14 +268,45 @@ def main(argv=None):
 
     args = p.parse_args(argv)
 
-    if args.cmd in ("render", "scene"):
+    if args.cmd == "init":
+        from .scaffold import init_project  # noqa: PLC0415 — keep import local
+
+        created = init_project(args.dest, force=args.force)
+        for f in created:
+            rich_print(f"created {f}")
+        if not created:
+            rich_print(f"{args.dest}: nothing to do (all files exist; use --force)")
+        else:
+            rich_print(
+                f"\nProject ready in {args.dest}. Next:\n"
+                f"  cmf render {args.dest / 'pages' / 'hello.yaml'}"
+            )
+    elif args.cmd in ("render", "scene"):
         lib = Library(args.library) if args.library else None
         scenes = SceneLibrary(args.scenes) if args.scenes else None
         px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
         fn = render_spec if args.cmd == "render" else render_scene
         out = args.out or _default_out(args.spec.stem)
-        fn(args.spec, out, library=lib, scenes=scenes, pixel_library=px)
-        print(f"wrote {out}")
+        try:
+            fn(args.spec, out, library=lib, scenes=scenes, pixel_library=px)
+        except ValueError as e:
+            rich_print(f"{args.spec}: {e}")
+            return 1
+        rich_print(f"wrote {out}")
+    elif args.cmd == "validate":
+        lib = Library(args.library) if args.library else None
+        scenes = SceneLibrary(args.scenes) if args.scenes else None
+        px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
+        problems = validate_spec(
+            args.spec, library=lib, scenes=scenes, pixel_library=px
+        )
+        if problems:
+            rich_print(f"{args.spec}: {len(problems)} problem(s)")
+            for msg in problems:
+                rich_print(f"  - {msg}")
+            return 1
+        rich_print(f"{args.spec}: ok")
+        return 0
     elif args.cmd == "panel":
         lib = Library(args.library) if args.library else None
         scenes = SceneLibrary(args.scenes) if args.scenes else None
@@ -259,7 +321,7 @@ def main(argv=None):
                 pixel_library=px,
                 scale=args.scale,
             ):
-                print(f"wrote {o}")
+                rich_print(f"wrote {o}")
         else:
             out = args.out or _default_out(
                 f"{args.spec.stem}-r{args.row}c{args.col}"
@@ -274,7 +336,7 @@ def main(argv=None):
                 scale=args.scale,
                 pixel_library=px,
             )
-            print(f"wrote {out}")
+            rich_print(f"wrote {out}")
     elif args.cmd == "character":
         lib = Library(args.library)
         char = lib.get(args.name)
@@ -290,7 +352,7 @@ def main(argv=None):
             bg=args.bg,
             flip=args.flip,
         )
-        print(f"wrote {out}")
+        rich_print(f"wrote {out}")
         # a smaller PNG alongside it, sized for Claude to read with fewer tokens
         if args.thumb_px > 0:
             thumb = out.with_name(f"{out.stem}.small.png")
@@ -305,17 +367,17 @@ def main(argv=None):
                 bg=args.bg,
                 flip=args.flip,
             )
-            print(f"wrote {thumb}")
+            rich_print(f"wrote {thumb}")
     elif args.cmd == "characters":
         lib = Library(args.library)
         json.dump(lib.manifest(), sys.stdout, indent=2, ensure_ascii=False)
-        print()
+        rich_print()
     elif args.cmd == "scenes":
         scenes = SceneLibrary(args.scenes)
         json.dump(scenes.manifest(), sys.stdout, indent=2, ensure_ascii=False)
-        print()
+        rich_print()
     elif args.cmd == "inspire":
-        from .inspire import generate
+        from .inspire import generate  # noqa: PLC0415 — lazy: keeps Replicate optional
 
         only = {s.strip() for s in args.only.split(",")} if args.only else None
         out = generate(
@@ -327,7 +389,7 @@ def main(argv=None):
             review=args.review,
             dry_run=args.dry_run,
         )
-        print(f"wrote {len(out)} file(s)")
+        rich_print(f"wrote {len(out)} file(s)")
 
 
 if __name__ == "__main__":

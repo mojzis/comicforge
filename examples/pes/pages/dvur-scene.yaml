@@ -1,6 +1,7 @@
 # Standalone illustration: a single scene filling the canvas, no comic grid.
 #   uv run comicforge scene examples/pes/pages/dvur-scene.yaml -o dvur.png
 title: "Na dvoře"
+type: scene
 scene:
   name: dvur
   weather: clear

@@ -17,10 +17,30 @@ examples/<name>/     A self-contained comic project: its own characters,
                      scenes, pixel art, and page specs. Nothing is shared.
 ```
 
-A real downstream project just does `pip install comicforge` and creates the same
-four asset folders; none of the example art ships with the engine. The `examples/`
+A real downstream project just installs the engine and creates the same four
+asset folders; none of the example art ships with the engine. The `examples/`
 directory is where we develop against the engine the same way a downstream project
 would.
+
+### Starting a new project — `cmf init`
+
+A project is **data only** — YAML specs + SVG / pixel art — so it needs no Python.
+Install the engine globally and scaffold a project:
+
+```
+uv tool install comicforge          # puts `cmf` on your PATH; no venv per project
+cmf init my-comic                   # scaffold the four asset dirs + a starter page
+cd my-comic && cmf render pages/hello.yaml
+```
+
+`cmf init <dir>` creates `characters/`, `scenes/`, `pixel/`, `pages/`, a renderable
+`pages/hello.yaml`, a seed `pixel/heart.yaml`, a `.gitignore`, a project `README`,
+and a copy of this skill under `.claude/skills/comicforge/`. It is idempotent —
+existing files are left alone unless you pass `--force`. After upgrading the engine,
+re-run `cmf init --force <dir>` to refresh the bundled skill.
+
+Only reach for a `pyproject.toml` (with `comicforge` as a dependency, run via
+`uv run cmf`) when you need a pinned engine version or your own render scripts.
 
 ### `comicforge/` — the engine
 
@@ -276,6 +296,7 @@ scene: dvur                           # default slots
 scene: {name: dvur, weather: rain}    # pick a slot variant
 
 # In a standalone scene spec:
+type: scene
 scene:
   name: dvur
   weather: clear
@@ -368,6 +389,17 @@ when you omit it they write a timestamped file into the gitignored `output/` dir
 (e.g. `output/slepice-20260614-191613.png`). Successive renders accumulate so you
 can compare how a page or character evolved; pass `-o` to pin an exact path.
 
+### `init` — scaffold a new project
+
+```bash
+cmf init <dir> [--force]
+```
+
+Creates a data-only project at `<dir>`: the `characters/`, `scenes/`, `pixel/`,
+`pages/` asset dirs, a renderable `pages/hello.yaml`, a seed `pixel/heart.yaml`, a
+`.gitignore`, a `README`, and a copy of this skill under `.claude/skills/comicforge/`.
+Idempotent — existing files are kept unless `--force` is given.
+
 ### `render` — render a comic page
 
 ```bash
@@ -384,6 +416,37 @@ cmf render examples/pes/pages/slepice.yaml -o slepice.png
 cmf render examples/pes/pages/slepice.yaml -o slepice.pdf
 ```
 
+### `validate` — check a spec without rendering
+
+```bash
+cmf validate <spec.yaml>
+  [--library <dir>]    # override spec's library: key
+  [--scenes  <dir>]    # override spec's scenes_dir: key
+  [--pixel-dir <dir>]  # override spec's pixel_dir: key
+```
+
+Statically checks a page or `scene` spec against the libraries it points at and
+reports **every** problem at once — no output is drawn. It catches things
+`render` doesn't: `render` stops at the first unrenderable item and *silently
+ignores* keys it doesn't recognise, so a typo like `fcae: happy` or `post: walk`
+renders a default-faced, default-posed actor with no error. `validate` flags:
+
+- characters / scenes / pixel sprites missing from the library
+- poses an actor asks for that the character lacks
+- slot variants that don't exist for the chosen character+pose / scene
+- actor / scene keys that aren't reserved and aren't a real slot (likely typos)
+- bubble `speaker` naming no actor in the panel; unknown bubble `kind`
+- structural holes (a page with no `rows`, a row with no `panels`, a bubble with
+  no `text`); an unknown `type:`, or a `type:` that contradicts the structure
+  (a `scene` spec carrying `rows`)
+
+Exits `0` when the spec is sound, `1` (with a bulleted problem list) otherwise —
+so it works in a pre-render check or CI.
+
+```bash
+cmf validate examples/pes/pages/slepice.yaml   # -> "...: ok"
+```
+
 ### `scene` — render a standalone illustration
 
 ```bash
@@ -396,6 +459,10 @@ cmf scene <spec.yaml> [-o <output>]   # default: output/<spec>-<timestamp>.png
 ```bash
 cmf scene examples/pes/pages/dvur-scene.yaml -o dvur.png
 ```
+
+A scene spec should declare `type: scene` (page specs default to `type: page`).
+`render` and `scene` each reject the wrong spec type with a clear message
+pointing at the other command, rather than crashing.
 
 ### `panel` — render individual panels for review
 

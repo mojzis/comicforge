@@ -79,11 +79,14 @@ def load_items(path: Path) -> list[Item]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     raw = data.get("items", []) if isinstance(data, dict) else data
     if not isinstance(raw, list):
-        raise ValueError(f"{path}: expected a list of items (or an 'items:' key)")
+        # malformed config, not a type bug -> ValueError is the right contract
+        raise ValueError(  # noqa: TRY004
+            f"{path}: expected a list of items (or an 'items:' key)"
+        )
     items: list[Item] = []
     for i, entry in enumerate(raw):
         if not isinstance(entry, dict):
-            raise ValueError(f"{path}: item {i} is not a mapping")
+            raise ValueError(f"{path}: item {i} is not a mapping")  # noqa: TRY004
         ident = entry.get("id") or entry.get("name")
         prompt = entry.get("prompt") or entry.get("description") or entry.get("desc")
         if not ident or not prompt:
@@ -110,7 +113,9 @@ def build_prompt(theme: Theme, item: Item) -> str:
 def _load_dotenv(*dirs: Path) -> None:
     """Best-effort: load a ``.env`` from the given dirs if python-dotenv is present."""
     try:
-        from dotenv import load_dotenv  # ty: ignore[unresolved-import]
+        from dotenv import (  # noqa: PLC0415  # ty: ignore[unresolved-import]
+            load_dotenv,
+        )
     except ImportError:
         return
     for d in dirs:
@@ -121,7 +126,8 @@ def _load_dotenv(*dirs: Path) -> None:
 
 def _generate_one(model: str, prompt: str, aspect_ratio: str) -> bytes:
     """Call Replicate and return the raw image bytes."""
-    import replicate  # lazy: only needed for live generation  # ty: ignore[unresolved-import]
+    # lazy: only needed for live generation, keeps Replicate an optional dep
+    import replicate  # noqa: PLC0415  # ty: ignore[unresolved-import]
 
     output = replicate.run(
         model,

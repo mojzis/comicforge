@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # cairosvg dlopens libcairo at runtime — not a pip dependency.
+      - name: Install cairo
+        run: sudo apt-get update && sudo apt-get install -y libcairo2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras
+
+      - name: Lint
+        run: uv run poe lint
+
+      - name: Typecheck
+        run: uv run poe typecheck
+
+      - name: Dead code
+        run: uv run poe dead-code
+
+      - name: Unused deps
+        run: uv run poe unused-deps
+
+      - name: Tests (with coverage)
+        run: uv run poe cov
+
+      # Advisory — never gate the build.
+      - name: Structural clones
+        if: always()
+        continue-on-error: true
+        run: uv run poe clones
+
+      - name: Dependency vulnerabilities
+        if: always()
+        continue-on-error: true
+        run: uv run poe vulns

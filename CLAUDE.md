@@ -55,7 +55,9 @@ CLI/tests point at. Keep it that way — no content leaks into `comicforge/`.
 
 ## Dev loop
 
-Assume an activated venv (`source .venv/bin/activate`); commands below run directly.
+The venv is already activated in this environment (`which python` →
+`.venv/bin/python`) — do **not** run `source .venv/bin/activate`; commands below
+run directly.
 
 ```bash
 uv sync          # create .venv, install deps (run once)

@@ -16,7 +16,7 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
           - bg: "#fbfaf6"            # optional panel background
             actors:
               - char: tom
-                pose: walk           # optional; defaults to the character's default pose
+                pose: walk           # optional; defaults to character's default
                 face: happy          # any slot -> variant
                 arms: wave
                 x: 0.35  y: 0.62     # centre, panel fraction
@@ -61,6 +61,30 @@ PAGE = {"A4": (210, 297), "A5": (148, 210), "letter": (216, 279)}
 
 def load_spec(path: str | Path) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+
+
+SPEC_TYPES = ("page", "scene")
+
+
+def spec_type(spec: dict) -> str:
+    """Return ``'page'`` or ``'scene'`` for a spec.
+
+    A ``page`` is a comic grid (``rows`` of ``panels``, rendered with
+    ``comicforge render``); a ``scene`` is a single illustration filling the
+    canvas (top-level ``scene``, rendered with ``comicforge scene``).
+
+    An explicit ``type:`` key wins; otherwise the type is inferred from
+    structure (top-level ``scene`` and no ``rows`` == a scene), so specs written
+    before ``type:`` existed keep working.
+    """
+    declared = spec.get("type")
+    if declared is not None:
+        if declared not in SPEC_TYPES:
+            raise ValueError(
+                f"unknown spec type {declared!r}; use one of {list(SPEC_TYPES)}"
+            )
+        return declared
+    return "scene" if "scene" in spec and "rows" not in spec else "page"
 
 
 def _resolve_dir(value: str | Path | None, spec_dir: Path | None) -> Path | None:
@@ -151,6 +175,11 @@ def build_svg(
     pixel_library: PixelLibrary | None = None,
     spec_dir: Path | None = None,
 ) -> str:
+    if spec_type(spec) == "scene":
+        raise ValueError(
+            "this is a 'scene' spec (single illustration) — render it with "
+            "`comicforge scene` instead of `render`."
+        )
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
     page = spec.get("page", "A4")
     w_mm, h_mm = PAGE[page] if isinstance(page, str) else page
@@ -218,11 +247,15 @@ def build_panel_svg(
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
     for ri, ci, panel, _px, _py, pw, ph in _layout(spec):
         if ri == row and ci == col:
+            # Render the panel body at full page size so absolute-sized elements
+            # (bubble text) keep the same proportions as the whole-page render;
+            # `scale` only shrinks the rasterized output via width/height, leaving
+            # the viewBox full-size so everything scales uniformly.
             ow, oh = pw * scale, ph * scale
-            body = _render_panel(panel, 0, 0, ow, oh, lib, scn, pxlib)
+            body = _render_panel(panel, 0, 0, pw, ph, lib, scn, pxlib)
             return (
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{ow:.0f}" '
-                f'height="{oh:.0f}" viewBox="0 0 {ow:.1f} {oh:.1f}">\n'
+                f'height="{oh:.0f}" viewBox="0 0 {pw:.1f} {ph:.1f}">\n'
                 f"{body}\n</svg>"
             )
     raise ValueError(f"no panel at row {row}, col {col}")
@@ -242,6 +275,11 @@ def build_scene_svg(
     ``scale`` (px per scene unit, default 4), plus ``actors`` / ``pixel`` /
     ``bubbles`` like a single panel, and an optional ``title``.
     """
+    if spec_type(spec) == "page":
+        raise ValueError(
+            "this is a 'page' spec (comic grid) — render it with "
+            "`comicforge render` instead of `scene`."
+        )
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
     sc = spec["scene"]
     name = sc if isinstance(sc, str) else sc["name"]
@@ -437,6 +475,15 @@ def _write(svg: str, out_path: str | Path) -> str:
     return svg
 
 
+def _load(spec):
+    """Normalise a spec arg to (dict, spec_dir). Paths resolve against the spec
+    file's dir; an inline dict has no dir."""
+    if isinstance(spec, dict):
+        return spec, None
+    spec_path = Path(spec)
+    return load_spec(spec_path), spec_path.parent.resolve()
+
+
 def render_spec(
     spec,
     out_path: str | Path,
@@ -445,11 +492,7 @@ def render_spec(
     pixel_library=None,
 ):
     """Render a comic page to .svg/.png/.pdf by extension. Returns the SVG."""
-    spec_dir = None
-    if not isinstance(spec, dict):
-        spec_path = Path(spec)
-        spec_dir = spec_path.parent.resolve()
-        spec = load_spec(spec_path)
+    spec, spec_dir = _load(spec)
     return _write(
         build_svg(spec, library, scenes, pixel_library, spec_dir=spec_dir),
         out_path,
@@ -467,11 +510,7 @@ def render_panel(
     pixel_library=None,
 ):
     """Render one panel to .svg/.png/.pdf for review. Returns the SVG."""
-    spec_dir = None
-    if not isinstance(spec, dict):
-        spec_path = Path(spec)
-        spec_dir = spec_path.parent.resolve()
-        spec = load_spec(spec_path)
+    spec, spec_dir = _load(spec)
     return _write(
         build_panel_svg(
             spec, row, col, library, scenes, scale, pixel_library, spec_dir=spec_dir
@@ -490,11 +529,7 @@ def render_all_panels(
     pixel_library=None,
 ):
     """Render every panel into out_dir as panel_r<R>c<C>.<ext>. Returns paths."""
-    spec_dir = None
-    if not isinstance(spec, dict):
-        spec_path = Path(spec)
-        spec_dir = spec_path.parent.resolve()
-        spec = load_spec(spec_path)
+    spec, spec_dir = _load(spec)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     outs = []
@@ -518,11 +553,7 @@ def render_scene(
     pixel_library=None,
 ):
     """Render a standalone scene illustration. Returns the SVG."""
-    spec_dir = None
-    if not isinstance(spec, dict):
-        spec_path = Path(spec)
-        spec_dir = spec_path.parent.resolve()
-        spec = load_spec(spec_path)
+    spec, spec_dir = _load(spec)
     return _write(
         build_scene_svg(spec, library, scenes, pixel_library, spec_dir=spec_dir),
         out_path,

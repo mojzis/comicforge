@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "cairosvg>=2.7",
     "pyyaml>=6.0",
+    "rich>=13.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["comicforge"]
 
+# Ship the authoring skill inside the wheel so `cmf init` can drop it into a
+# scaffolded project. Lands at comicforge/_skill/ (see scaffold.skill_src).
+[tool.hatch.build.targets.wheel.force-include]
+"skills/comicforge" = "comicforge/_skill"
+
 [dependency-groups]
 dev = [
     "ruff",
@@ -46,6 +52,14 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "DTZ", "T20", "PTH", "ERA", "PL", "TRY", "RUF", "S", "PERF", "FURB"]
+ignore = [
+    # Messages are unique, dynamic f-strings; a custom exception class per site
+    # would be noise, not clarity.
+    "TRY003",
+    # The geometry/placement/render functions legitimately take many positional
+    # coordinate args (cx, cy, w, h, …); splitting them hurts readability.
+    "PLR0913",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["PLR2004", "PLR0913", "S"]

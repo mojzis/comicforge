@@ -3,7 +3,9 @@
 All coordinates here are absolute page px. A bubble is positioned by its centre
 (bx, by); the tail points toward `tail` (also page px).
 """
+
 from __future__ import annotations
+
 import math
 from xml.sax.saxutils import escape
 
@@ -41,7 +43,7 @@ def bubble(text, bx, by, tail=None, kind="speech", max_chars=22,
            fs=16, pad=14):
     lines = _wrap(text, max_chars)
     lh = fs * 1.25
-    longest = max((len(l) for l in lines), default=1)
+    longest = max((len(ln) for ln in lines), default=1)
     w = max(longest * fs * 0.56 + 2 * pad, 60)
     h = len(lines) * lh + 2 * pad
     x, y = bx - w / 2, by - h / 2
@@ -94,8 +96,11 @@ def _tail(bx, by, w, h, tail, kind):
     ay = ey + math.sin(perp) * base
     bx2 = ex - math.cos(perp) * base
     by2 = ey - math.sin(perp) * base
-    return (f'<path d="M{ax:.1f} {ay:.1f} L{tipx:.1f} {tipy:.1f} L{bx2:.1f} {by2:.1f} Z" '
-            f'fill="#ffffff" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>')
+    return (
+        f'<path d="M{ax:.1f} {ay:.1f} L{tipx:.1f} {tipy:.1f} '
+        f'L{bx2:.1f} {by2:.1f} Z" fill="#ffffff" stroke="{INK}" '
+        f'stroke-width="2.5" stroke-linejoin="round"/>'
+    )
 
 
 def _cloud(x, y, w, h):

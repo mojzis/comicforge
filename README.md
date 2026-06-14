@@ -7,7 +7,22 @@ text — see the authoring skill [`skills/comicforge/SKILL.md`](skills/comicforg
 for the full authoring contract and [`skills/comicforge/reference.md`](skills/comicforge/reference.md)
 for a deeper reference. Working **on the engine** instead? See [`CLAUDE.md`](CLAUDE.md).
 
-## Install
+## Start a project
+
+ComicForge ships no art and a project needs no Python — a project is just YAML
+specs + SVG / pixel art that the CLI points at. Install the engine globally and
+scaffold one:
+
+```bash
+uv tool install comicforge         # puts `cmf` on your PATH (no venv needed)
+cmf init my-comic                  # scaffold characters/ scenes/ pixel/ pages/ + skill
+cd my-comic && cmf render pages/hello.yaml
+```
+
+See [`docs/starting-a-project.md`](docs/starting-a-project.md) for the data-only
+setup, version pinning, and when to make it a real Python project.
+
+## Working on the engine
 
 ```bash
 uv sync                            # create .venv and install deps
