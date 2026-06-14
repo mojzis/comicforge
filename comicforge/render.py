@@ -92,7 +92,7 @@ class _NullSceneLibrary:
     """Placeholder used when no scenes_dir is configured."""
 
     def get(self, name: str) -> Character:
-        raise ValueError(
+        raise KeyError(
             f"scene '{name}' requested but no scenes_dir was provided. "
             "Set 'scenes_dir:' in the spec or pass --scenes on the CLI."
         )

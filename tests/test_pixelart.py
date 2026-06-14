@@ -13,13 +13,13 @@ def test_sprite_skips_blanks():
     assert "#ff0000" in svg
 
 
-def test_resolve_builtin(pixel):
+def test_resolve_library_sprite(pixel):
     inner, cols, rows = pixelart.resolve({"art": "heart"}, pixel)
     assert "<rect" in inner
     assert cols > 0 and rows > 0
 
 
-def test_resolve_unknown_builtin_raises(pixel):
+def test_resolve_unknown_library_sprite_raises(pixel):
     with pytest.raises(KeyError):
         pixelart.resolve({"art": "no-such-art"}, pixel)
 
