@@ -1,0 +1,45 @@
+verbosity = -1
+
+[tasks.fix]
+sequence = [
+    { cmd = "ruff format --quiet ." },
+    { cmd = "ruff check --fix --quiet ." },
+]
+help = "Auto-fix: format and lint"
+
+[tasks.lint]
+cmd = "ruff check ."
+help = "Run linter (no fix)"
+
+[tasks.typecheck]
+cmd = "ty check"
+help = "Run type checker"
+
+[tasks.test]
+cmd = "pytest -q --tb=short"
+help = "Run tests"
+
+[tasks.dead-code]
+cmd = "vulture comicforge"
+help = "Dead code detection"
+
+[tasks.unused-deps]
+cmd = "deptry ."
+help = "Unused dependency check"
+
+[tasks._check-parallel]
+shell = """
+  ruff check . &
+  ty check &
+  vulture comicforge &
+  deptry . &
+  wait
+"""
+interpreter = "bash"
+
+[tasks.check]
+sequence = [
+    { ref = "_check-parallel" },
+    { ref = "test" },
+]
+help = "Run all checks (parallel where possible)"

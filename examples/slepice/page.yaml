@@ -1,0 +1,51 @@
+title: "Bára hlídá slepice"
+page: A4
+px_per_mm: 4
+margin_mm: 14
+gutter_mm: 6
+
+rows:
+  - height: 1.0
+    panels:
+      - actors:
+          - {char: tom, face: happy, arms: wave, x: 0.34, y: 0.66, scale: 0.86}
+          - {char: bara, face: neutral, x: 0.72, y: 0.78, scale: 0.46}
+        bubbles:
+          - text: "Báro, hlídej slepice!"
+            kind: speech
+            x: 0.5
+            y: 0.18
+            to: [0.36, 0.42]
+      - actors:
+          - {char: bara, face: happy, x: 0.45, y: 0.74, scale: 0.55}
+        pixel:
+          - {art: sun, x: 0.82, y: 0.24, scale: 0.26}
+        bubbles:
+          - text: "Hlídám! Haf!"
+            kind: shout
+            x: 0.46
+            y: 0.22
+            to: [0.5, 0.5]
+
+  - height: 1.0
+    panels:
+      - actors:
+          - {char: bara, face: neutral, x: 0.5, y: 0.72, scale: 0.5}
+        pixel:
+          - {art: bone, x: 0.78, y: 0.7, scale: 0.12}
+        bubbles:
+          - text: "Kdyby tak byla nějaká kost..."
+            kind: thought
+            x: 0.42
+            y: 0.24
+            to: [0.5, 0.55]
+      - actors:
+          - {char: tom, face: surprised, arms: point, x: 0.4, y: 0.66, scale: 0.86}
+        pixel:
+          - {art: heart, x: 0.8, y: 0.3, scale: 0.16}
+        bubbles:
+          - text: "Hodná holka!"
+            kind: speech
+            x: 0.52
+            y: 0.2
+            to: [0.42, 0.45]

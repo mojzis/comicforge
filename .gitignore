@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Claude workflow scratch dirs
+cf/
+di/
+
+# Rendered output
+*.png
+*.pdf
+
+# Source archive (redundant after flattening)
+*.zip

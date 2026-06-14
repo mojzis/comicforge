@@ -1,0 +1,7 @@
+name: bara
+label: Bára
+viewbox: [240, 180]
+default:
+  face: neutral
+slots:
+  face: [neutral, happy]
