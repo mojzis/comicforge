@@ -25,8 +25,11 @@ jobs:
         with:
           enable-cache: true
 
+      # Plain sync mirrors the canonical `poe check` env. The `inspire` extra
+      # (replicate) is optional and changes ty's inference; its tests are
+      # self-contained, so we don't install it here.
       - name: Sync dependencies
-        run: uv sync --all-extras
+        run: uv sync
 
       - name: Lint
         run: uv run poe lint
