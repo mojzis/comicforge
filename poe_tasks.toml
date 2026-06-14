@@ -16,8 +16,12 @@ cmd = "ty check"
 help = "Run type checker"
 
 [tasks.test]
-cmd = "pytest -q --tb=short"
-help = "Run tests"
+cmd = "pytest -o addopts= -x -qq --tb=line --no-header"
+help = "Fail-fast tests: no coverage, minimal output"
+
+[tasks.cov]
+cmd = "pytest"
+help = "Full test run with coverage report"
 
 [tasks.dead-code]
 cmd = "vulture comicforge"
@@ -27,12 +31,23 @@ help = "Dead code detection"
 cmd = "deptry ."
 help = "Unused dependency check"
 
+[tasks.clones]
+cmd = "biston scan ."
+help = "Structural clone detection (advisory)"
+
+[tasks.vulns]
+shell = "uvx pysentry-rs --compact . || true"
+interpreter = "bash"
+help = "Dependency vulnerability scan"
+
 [tasks._check-parallel]
 shell = """
   ruff check . &
   ty check &
   vulture comicforge &
   deptry . &
+  biston scan . &
+  (uvx pysentry-rs --compact . || true) &
   wait
 """
 interpreter = "bash"
@@ -42,4 +57,4 @@ sequence = [
     { ref = "_check-parallel" },
     { ref = "test" },
 ]
-help = "Run all checks (parallel where possible)"
+help = "Run all checks (parallel static analysis, then fail-fast tests)"

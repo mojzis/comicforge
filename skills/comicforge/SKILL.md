@@ -25,9 +25,9 @@ library. A project owns `characters/`, `scenes/`, `pixel/`, and its page specs
 under `pages/`. Paths below assume you are working inside one project.
 
 1. Read the project's assets:
-   - `uv run --active comicforge characters --library examples/pes/characters` → JSON
+   - `cmf characters --library examples/pes/characters` → JSON
      of every character, its **slots**, **variants** per slot, and the defaults.
-   - `uv run --active comicforge scenes --scenes examples/pes/scenes` → JSON of every
+   - `cmf scenes --scenes examples/pes/scenes` → JSON of every
      scene background and its slots.
 2. Write a spec under `pages/` (see grammar below). Spec-level keys declare where
    assets live, relative to the spec file (siblings are one level up):
@@ -37,8 +37,8 @@ under `pages/`. Paths below assume you are working inside one project.
    pixel_dir:  "../pixel"
    ```
 3. Render:
-   - comic page: `uv run --active comicforge render mystrip.yaml -o out.pdf`
-   - single illustration: `uv run --active comicforge scene myscene.yaml -o out.png`
+   - comic page: `cmf render mystrip.yaml -o out.pdf`
+   - single illustration: `cmf scene myscene.yaml -o out.png`
 4. Look at the output; adjust `x` / `y` / `scale` / `to` and re-render.
 
 ## Coordinates

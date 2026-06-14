@@ -24,6 +24,17 @@ wheels = [
 ]
 
 [[package]]
+name = "biston"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/35/ac5828c2744716da22aa52af700cd9521781b914045f264a9ab53654108d/biston-0.5.0.tar.gz", hash = "sha256:289b1a9a6d8811b04fb049ef01cc4834f2c37434e8235bad01892012d01b79ea", size = 882675, upload-time = "2026-04-16T21:39:38.738Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/97/e255f980ba62ff27cd2d212a66562eb20d804c3d3a5779aadfc583dab59a/biston-0.5.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:fb63fbca3d059c8bb750d79de016e1d606e577b83b5c513931679323c995756c", size = 1405240, upload-time = "2026-04-16T21:39:33.562Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/ae/c5b9bcbdbd7eafa4001169275b4d4f2f1f96ef12bc35140c95a5dc9b3a2d/biston-0.5.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:6836af938703d5a1248204729432f9c42115eb4123ae838a405ac8e69e0897d8", size = 1623075, upload-time = "2026-04-16T21:39:35.316Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/62/0da884c32b256b56ee61d91ae55de4082dff5841984bf6644431eed9b1f1/biston-0.5.0-py3-none-win_amd64.whl", hash = "sha256:e2cf9ebf029958eb1e78215df301cc6d5b8885e2d6b80f744ba47c9c0285c289", size = 1477973, upload-time = "2026-04-16T21:39:37.063Z" },
+]
+
+[[package]]
 name = "cairocffi"
 version = "1.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -143,6 +154,7 @@ inspire = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "biston" },
     { name = "deptry" },
     { name = "poethepoet" },
     { name = "pytest" },
@@ -163,6 +175,7 @@ provides-extras = ["inspire"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "biston", specifier = ">=0.5.0" },
     { name = "deptry" },
     { name = "poethepoet" },
     { name = "pytest" },

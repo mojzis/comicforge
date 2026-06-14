@@ -65,19 +65,29 @@ CLI/tests point at. Keep it that way — no content leaks into `comicforge/`.
 
 ## Dev loop
 
+Assume an activated venv (`source .venv/bin/activate`); commands below run directly.
+
 ```bash
-uv sync                                # create .venv, install deps
-uv run pytest                          # run the test suite
-uv run ruff check . && uv run ruff format .
+uv sync          # create .venv, install deps (run once)
+poe test         # fail-fast tests, no coverage, terse (the tight loop)
+poe check        # everything: lint, typecheck, dead-code, deps, clones, vulns, test
+poe fix          # auto-format + auto-fix lint
+poe cov          # full test run with coverage report
 ```
+
+`poe test` is the tight loop — quiet, fail-fast, no coverage, minimal tokens.
+`poe check` runs the static-analysis tools in parallel then the tests; run it
+before declaring work done. See `poe_tasks.toml` for the full task list.
 
 Render the demos to eyeball a change end-to-end:
 
+`cmf` is the short alias for the `comicforge` CLI.
+
 ```bash
-uv run --active comicforge render examples/pes/pages/slepice.yaml   -o slepice.png
-uv run --active comicforge render examples/pes/pages/kosticka.yaml  -o kosticka.png
-uv run --active comicforge scene  examples/pes/pages/dvur-scene.yaml -o dvur.png
-uv run --active comicforge panel  examples/pes/pages/slepice.yaml -o panels/ --all
+cmf render examples/pes/pages/slepice.yaml   -o slepice.png
+cmf render examples/pes/pages/kosticka.yaml  -o kosticka.png
+cmf scene  examples/pes/pages/dvur-scene.yaml -o dvur.png
+cmf panel  examples/pes/pages/slepice.yaml -o panels/ --all
 ```
 
 ## Conventions / invariants

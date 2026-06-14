@@ -219,7 +219,7 @@ class Library:
         for p in sorted(self.root.iterdir()):
             if p.is_dir() and (p / "character.yaml").exists():
                 c = self.get(p.name)
-                entry = {
+                entry: dict[str, object] = {
                     "label": c.label,
                     "slots": c.slots,  # shared across poses
                     "default": c.defaults,

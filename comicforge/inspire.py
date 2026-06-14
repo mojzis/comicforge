@@ -110,7 +110,7 @@ def build_prompt(theme: Theme, item: Item) -> str:
 def _load_dotenv(*dirs: Path) -> None:
     """Best-effort: load a ``.env`` from the given dirs if python-dotenv is present."""
     try:
-        from dotenv import load_dotenv
+        from dotenv import load_dotenv  # ty: ignore[unresolved-import]
     except ImportError:
         return
     for d in dirs:
@@ -121,7 +121,7 @@ def _load_dotenv(*dirs: Path) -> None:
 
 def _generate_one(model: str, prompt: str, aspect_ratio: str) -> bytes:
     """Call Replicate and return the raw image bytes."""
-    import replicate  # lazy: only needed for live generation
+    import replicate  # lazy: only needed for live generation  # ty: ignore[unresolved-import]
 
     output = replicate.run(
         model,

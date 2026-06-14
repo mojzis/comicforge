@@ -17,19 +17,19 @@ uv sync                            # create .venv and install deps
 
 ```bash
 # render a comic page
-uv run --active comicforge render examples/pes/pages/slepice.yaml -o slepice.png
-uv run --active comicforge render examples/pes/pages/slepice.yaml -o slepice.pdf
+cmf render examples/pes/pages/slepice.yaml -o slepice.png
+cmf render examples/pes/pages/slepice.yaml -o slepice.pdf
 
 # render a standalone scene illustration (one background, no comic grid)
-uv run --active comicforge scene examples/pes/pages/dvur-scene.yaml -o dvur.png
+cmf scene examples/pes/pages/dvur-scene.yaml -o dvur.png
 
 # render individual panels at low res for quick review
-uv run --active comicforge panel examples/pes/pages/slepice.yaml -o panel.png --row 0 --col 0
-uv run --active comicforge panel examples/pes/pages/slepice.yaml -o panels/ --all --scale 0.5
+cmf panel examples/pes/pages/slepice.yaml -o panel.png --row 0 --col 0
+cmf panel examples/pes/pages/slepice.yaml -o panels/ --all --scale 0.5
 
 # print the machine-readable contracts (characters / scenes, slots, variants)
-uv run --active comicforge characters --library examples/pes/characters
-uv run --active comicforge scenes --scenes examples/pes/scenes
+cmf characters --library examples/pes/characters
+cmf scenes --scenes examples/pes/scenes
 ```
 
 Or from Python:

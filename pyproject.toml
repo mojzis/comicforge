@@ -36,6 +36,7 @@ dev = [
     "pytest-cov",
     "vulture",
     "deptry",
+    "biston>=0.5.0",
     "poethepoet",
 ]
 
@@ -62,6 +63,10 @@ source = ["comicforge"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.deptry.package_module_name_map]
+# `inspire` extra: deptry can't infer the module name without the extra installed.
+python-dotenv = ["dotenv"]
 
 [tool.vulture]
 paths = ["comicforge"]

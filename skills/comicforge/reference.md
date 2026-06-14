@@ -107,7 +107,7 @@ pixel_dir: "../pixel"
 
 When you run from the repo root:
 ```bash
-uv run --active comicforge render examples/pes/pages/slepice.yaml -o out.png
+cmf render examples/pes/pages/slepice.yaml -o out.png
 ```
 
 The engine resolves `../characters` relative to `examples/pes/pages/` — arriving
@@ -284,7 +284,7 @@ scale: 3                              # px per scene unit (canvas = viewbox × s
 
 Confirm available scenes and slots with:
 ```bash
-uv run --active comicforge scenes --scenes examples/pes/scenes
+cmf scenes --scenes examples/pes/scenes
 ```
 
 ---
@@ -361,12 +361,12 @@ fraction of panel height. Multiple pixel items can appear in one panel.
 
 ## CLI reference
 
-Run all commands from the repo root with `uv run --active comicforge <cmd>`.
+Run all commands from the repo root with `cmf <cmd>`.
 
 ### `render` — render a comic page
 
 ```bash
-uv run --active comicforge render <spec.yaml> -o <output>
+cmf render <spec.yaml> -o <output>
   [--library <dir>]    # override spec's library: key
   [--scenes  <dir>]    # override spec's scenes_dir: key
   [--pixel-dir <dir>]  # override spec's pixel_dir: key
@@ -375,27 +375,27 @@ uv run --active comicforge render <spec.yaml> -o <output>
 Output format is determined by the file extension: `.svg`, `.png`, or `.pdf`.
 
 ```bash
-uv run --active comicforge render examples/pes/pages/slepice.yaml -o slepice.png
-uv run --active comicforge render examples/pes/pages/slepice.yaml -o slepice.pdf
+cmf render examples/pes/pages/slepice.yaml -o slepice.png
+cmf render examples/pes/pages/slepice.yaml -o slepice.pdf
 ```
 
 ### `scene` — render a standalone illustration
 
 ```bash
-uv run --active comicforge scene <spec.yaml> -o <output>
+cmf scene <spec.yaml> -o <output>
   [--library <dir>]
   [--scenes  <dir>]
   [--pixel-dir <dir>]
 ```
 
 ```bash
-uv run --active comicforge scene examples/pes/pages/dvur-scene.yaml -o dvur.png
+cmf scene examples/pes/pages/dvur-scene.yaml -o dvur.png
 ```
 
 ### `panel` — render individual panels for review
 
 ```bash
-uv run --active comicforge panel <spec.yaml> -o <output>
+cmf panel <spec.yaml> -o <output>
   [--row 0] [--col 0]       # which panel (0-indexed)
   [--all]                   # render every panel into a directory
   [--scale 0.5]             # size vs full-page (default 0.5 = low res)
@@ -405,34 +405,34 @@ uv run --active comicforge panel <spec.yaml> -o <output>
 ```
 
 ```bash
-uv run --active comicforge panel examples/pes/pages/slepice.yaml -o panel.png --row 0 --col 1
-uv run --active comicforge panel examples/pes/pages/kosticka.yaml -o panels/ --all
+cmf panel examples/pes/pages/slepice.yaml -o panel.png --row 0 --col 1
+cmf panel examples/pes/pages/kosticka.yaml -o panels/ --all
 ```
 
 ### `characters` — list a project's characters
 
 ```bash
-uv run --active comicforge characters --library <dir>
+cmf characters --library <dir>
 ```
 
 The `--library` flag is **required** (no default). Prints a JSON manifest of every
 character, its slots, available variants, and defaults.
 
 ```bash
-uv run --active comicforge characters --library examples/pes/characters
+cmf characters --library examples/pes/characters
 ```
 
 ### `scenes` — list a project's scenes
 
 ```bash
-uv run --active comicforge scenes --scenes <dir>
+cmf scenes --scenes <dir>
 ```
 
 The `--scenes` flag is **required** (no default). Prints a JSON manifest of every
 scene and its slots.
 
 ```bash
-uv run --active comicforge scenes --scenes examples/pes/scenes
+cmf scenes --scenes examples/pes/scenes
 ```
 
 ### `inspire` — generate reference images from a theme + descriptions
@@ -442,7 +442,7 @@ Reads a project theme (`theme.yaml`) and a list of descriptions (`references.yam
 composes one prompt per item, and calls the Replicate API.
 
 ```bash
-uv run --active comicforge inspire <references.yaml> -o <out_dir>
+cmf inspire <references.yaml> -o <out_dir>
   [--theme <theme.yaml>]   # default: theme.yaml beside the spec
   [--only id1,id2]         # generate only these ids
   [--force]                # regenerate even if a .png already exists
@@ -472,8 +472,8 @@ Live generation requires the optional extra and a token:
 ```bash
 pip install "comicforge[inspire]"          # adds replicate + python-dotenv
 export REPLICATE_API_TOKEN=...             # or put it in a .env beside the spec
-uv run --active comicforge inspire examples/pes/references.yaml --review
-uv run --active comicforge inspire examples/pes/references.yaml --dry-run   # no token needed
+cmf inspire examples/pes/references.yaml --review
+cmf inspire examples/pes/references.yaml --dry-run   # no token needed
 ```
 
 The composed prompt is `style` → `Subject: <prompt>` → palette → mood → negative,
@@ -536,7 +536,7 @@ All three pages live in the `examples/pes/` project.
 
 Render all demos from the repo root:
 ```bash
-uv run --active comicforge render examples/pes/pages/slepice.yaml   -o slepice.png
-uv run --active comicforge render examples/pes/pages/kosticka.yaml  -o kosticka.png
-uv run --active comicforge scene  examples/pes/pages/dvur-scene.yaml -o dvur.png
+cmf render examples/pes/pages/slepice.yaml   -o slepice.png
+cmf render examples/pes/pages/kosticka.yaml  -o kosticka.png
+cmf scene  examples/pes/pages/dvur-scene.yaml -o dvur.png
 ```
