@@ -266,6 +266,56 @@ def build_scene_svg(
     return "\n".join(parts)
 
 
+def build_character_svg(
+    name: str,
+    selection: dict[str, str],
+    pose: str | None = None,
+    *,
+    library: Library,
+    scale: float = 2.0,
+    bg: str = "#ffffff",
+    flip: bool = False,
+    pad: float = 0.08,
+) -> str:
+    """Render one character standalone, cropped to its pose, for quick review.
+
+    No page, no panel grid — just the composed character on a `bg` canvas sized
+    to the pose's viewBox times `scale`, with a `pad` fraction of margin.
+    """
+    char = library.get(name)
+    p = char.resolve_pose(pose)
+    bw, bh = p.w * scale, p.h * scale
+    m = max(bw, bh) * pad
+    w, h = bw + 2 * m, bh + 2 * m
+    inner = char.place(selection, cx=w / 2, cy=h / 2, height=bh, flip=flip, pose=pose)
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w:.0f}" height="{h:.0f}" '
+        f'viewBox="0 0 {w:.1f} {h:.1f}">\n'
+        f'<rect width="{w:.1f}" height="{h:.1f}" fill="{bg}"/>\n'
+        f"{inner}\n</svg>"
+    )
+
+
+def render_character(
+    name: str,
+    out_path: str | Path,
+    selection: dict[str, str],
+    pose: str | None = None,
+    *,
+    library: Library,
+    scale: float = 2.0,
+    bg: str = "#ffffff",
+    flip: bool = False,
+) -> str:
+    """Render a single character to .svg/.png/.pdf for review. Returns the SVG."""
+    return _write(
+        build_character_svg(
+            name, selection, pose, library=library, scale=scale, bg=bg, flip=flip
+        ),
+        out_path,
+    )
+
+
 def _render_panel(
     panel, px, py, pw, ph, lib, scenes, pixel_library=None, border=True
 ) -> str:

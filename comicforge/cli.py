@@ -5,6 +5,9 @@ python -m comicforge scene  examples/pes/pages/dvur-scene.yaml -o out.png
 python -m comicforge characters --library examples/pes/characters
 python -m comicforge scenes --scenes examples/pes/scenes
 python -m comicforge inspire examples/pes/references.yaml --review
+
+When `-o` is omitted, render/scene/panel/character write a timestamped file into
+the gitignored ``output/`` dir (so successive renders accumulate for comparison).
 """
 
 from __future__ import annotations
@@ -12,12 +15,68 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from .library import Library
 from .pixelart import PixelLibrary
-from .render import render_all_panels, render_panel, render_scene, render_spec
+from .render import (
+    render_all_panels,
+    render_character,
+    render_panel,
+    render_scene,
+    render_spec,
+)
 from .scene import SceneLibrary
+
+# Where renders land when -o is omitted. Gitignored; filenames carry a timestamp
+# so successive renders accumulate and you can watch a page/character evolve.
+OUTPUT_DIR = Path("output")
+
+
+def _stamp() -> str:
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def _default_out(stem: str, ext: str = ".png") -> Path:
+    """A timestamped path inside the gitignored output dir."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return OUTPUT_DIR / f"{stem}-{_stamp()}{ext}"
+
+
+def _parse_selection(char, tokens, pose):
+    """Turn CLI tokens into a (selection, pose) pair for one character.
+
+    A token is either ``key=value`` (``pose=walk``, ``face=happy``) or a bare
+    name that is matched against the character's poses, then its slot variants.
+    """
+    # pass 1: settle the pose first, so variant lookup uses the right slots
+    for tok in tokens:
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            if k == "pose":
+                pose = v
+        elif tok in char.poses:
+            pose = tok
+
+    slots = char.slots_for(pose)
+    selection: dict[str, str] = {}
+    for tok in tokens:
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            if k != "pose":
+                selection[k] = v
+        elif tok in char.poses:
+            continue
+        else:
+            slot = next((s for s, variants in slots.items() if tok in variants), None)
+            if slot is None:
+                raise SystemExit(
+                    f"don't know '{tok}' for {char.name}: not a pose {list(char.poses)} "
+                    f"nor a variant in {slots}"
+                )
+            selection[slot] = tok
+    return selection, pose
 
 
 def main(argv=None):
@@ -27,7 +86,11 @@ def main(argv=None):
     r = sub.add_parser("render", help="render a comic page spec")
     r.add_argument("spec", type=Path)
     r.add_argument(
-        "-o", "--out", type=Path, required=True, help="output .svg / .png / .pdf"
+        "-o",
+        "--out",
+        type=Path,
+        default=None,
+        help="output .svg / .png / .pdf (default: output/<spec>-<timestamp>.png)",
     )
     r.add_argument("--library", type=Path, default=None)
     r.add_argument("--scenes", type=Path, default=None)
@@ -42,7 +105,11 @@ def main(argv=None):
     s = sub.add_parser("scene", help="render a standalone scene illustration")
     s.add_argument("spec", type=Path)
     s.add_argument(
-        "-o", "--out", type=Path, required=True, help="output .svg / .png / .pdf"
+        "-o",
+        "--out",
+        type=Path,
+        default=None,
+        help="output .svg / .png / .pdf (default: output/<spec>-<timestamp>.png)",
     )
     s.add_argument("--library", type=Path, default=None)
     s.add_argument("--scenes", type=Path, default=None)
@@ -62,8 +129,9 @@ def main(argv=None):
         "-o",
         "--out",
         type=Path,
-        required=True,
-        help="output file, or a directory when --all",
+        default=None,
+        help="output file, or a directory when --all "
+        "(default: timestamped path under output/)",
     )
     pn.add_argument("--row", type=int, default=0)
     pn.add_argument("--col", type=int, default=0)
@@ -84,6 +152,40 @@ def main(argv=None):
         default=None,
         dest="pixel_dir",
         help="pixel-art sprite library directory",
+    )
+
+    ch = sub.add_parser(
+        "character", help="render a single character on its own, for review"
+    )
+    ch.add_argument("name", help="character to render")
+    ch.add_argument(
+        "selections",
+        nargs="*",
+        help="pose and slot variants as bare names (sit, happy) or key=value "
+        "(face=happy, pose=walk)",
+    )
+    ch.add_argument(
+        "-o",
+        "--out",
+        type=Path,
+        default=None,
+        help="output .svg / .png / .pdf (default: output/<name>-<timestamp>.png)",
+    )
+    ch.add_argument(
+        "--library", type=Path, required=True, help="character library directory"
+    )
+    ch.add_argument("--pose", default=None, help="pose to render (default: character's)")
+    ch.add_argument(
+        "--scale", type=float, default=2.0, help="px per viewBox unit (default 2)"
+    )
+    ch.add_argument("--bg", default="#ffffff", help="canvas background colour")
+    ch.add_argument("--flip", action="store_true", help="mirror horizontally")
+    ch.add_argument(
+        "--thumb-px",
+        type=int,
+        default=320,
+        dest="thumb_px",
+        help="body width of the small companion PNG (0 to skip it)",
     )
 
     c = sub.add_parser("characters", help="print the character library contract")
@@ -140,16 +242,18 @@ def main(argv=None):
         scenes = SceneLibrary(args.scenes) if args.scenes else None
         px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
         fn = render_spec if args.cmd == "render" else render_scene
-        fn(args.spec, args.out, library=lib, scenes=scenes, pixel_library=px)
-        print(f"wrote {args.out}")
+        out = args.out or _default_out(args.spec.stem)
+        fn(args.spec, out, library=lib, scenes=scenes, pixel_library=px)
+        print(f"wrote {out}")
     elif args.cmd == "panel":
         lib = Library(args.library) if args.library else None
         scenes = SceneLibrary(args.scenes) if args.scenes else None
         px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
         if args.all:
+            out = args.out or (OUTPUT_DIR / f"{args.spec.stem}-panels-{_stamp()}")
             for o in render_all_panels(
                 args.spec,
-                args.out,
+                out,
                 library=lib,
                 scenes=scenes,
                 pixel_library=px,
@@ -157,9 +261,12 @@ def main(argv=None):
             ):
                 print(f"wrote {o}")
         else:
+            out = args.out or _default_out(
+                f"{args.spec.stem}-r{args.row}c{args.col}"
+            )
             render_panel(
                 args.spec,
-                args.out,
+                out,
                 args.row,
                 args.col,
                 library=lib,
@@ -167,7 +274,38 @@ def main(argv=None):
                 scale=args.scale,
                 pixel_library=px,
             )
-            print(f"wrote {args.out}")
+            print(f"wrote {out}")
+    elif args.cmd == "character":
+        lib = Library(args.library)
+        char = lib.get(args.name)
+        selection, pose = _parse_selection(char, args.selections, args.pose)
+        out = args.out or _default_out(args.name)
+        render_character(
+            args.name,
+            out,
+            selection,
+            pose=pose,
+            library=lib,
+            scale=args.scale,
+            bg=args.bg,
+            flip=args.flip,
+        )
+        print(f"wrote {out}")
+        # a smaller PNG alongside it, sized for Claude to read with fewer tokens
+        if args.thumb_px > 0:
+            thumb = out.with_name(f"{out.stem}.small.png")
+            thumb_scale = min(args.scale, args.thumb_px / char.resolve_pose(pose).w)
+            render_character(
+                args.name,
+                thumb,
+                selection,
+                pose=pose,
+                library=lib,
+                scale=thumb_scale,
+                bg=args.bg,
+                flip=args.flip,
+            )
+            print(f"wrote {thumb}")
     elif args.cmd == "characters":
         lib = Library(args.library)
         json.dump(lib.manifest(), sys.stdout, indent=2, ensure_ascii=False)

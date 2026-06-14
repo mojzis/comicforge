@@ -363,10 +363,15 @@ fraction of panel height. Multiple pixel items can appear in one panel.
 
 Run all commands from the repo root with `cmf <cmd>`.
 
+**Default output.** `render`, `scene`, `panel`, and `character` accept `-o`, but
+when you omit it they write a timestamped file into the gitignored `output/` dir
+(e.g. `output/slepice-20260614-191613.png`). Successive renders accumulate so you
+can compare how a page or character evolved; pass `-o` to pin an exact path.
+
 ### `render` — render a comic page
 
 ```bash
-cmf render <spec.yaml> -o <output>
+cmf render <spec.yaml> [-o <output>]   # default: output/<spec>-<timestamp>.png
   [--library <dir>]    # override spec's library: key
   [--scenes  <dir>]    # override spec's scenes_dir: key
   [--pixel-dir <dir>]  # override spec's pixel_dir: key
@@ -382,7 +387,7 @@ cmf render examples/pes/pages/slepice.yaml -o slepice.pdf
 ### `scene` — render a standalone illustration
 
 ```bash
-cmf scene <spec.yaml> -o <output>
+cmf scene <spec.yaml> [-o <output>]   # default: output/<spec>-<timestamp>.png
   [--library <dir>]
   [--scenes  <dir>]
   [--pixel-dir <dir>]
@@ -395,9 +400,10 @@ cmf scene examples/pes/pages/dvur-scene.yaml -o dvur.png
 ### `panel` — render individual panels for review
 
 ```bash
-cmf panel <spec.yaml> -o <output>
+cmf panel <spec.yaml> [-o <output>]   # default: output/<spec>-r<R>c<C>-<ts>.png
   [--row 0] [--col 0]       # which panel (0-indexed)
   [--all]                   # render every panel into a directory
+                            # (default: output/<spec>-panels-<ts>/)
   [--scale 0.5]             # size vs full-page (default 0.5 = low res)
   [--library <dir>]
   [--scenes  <dir>]
@@ -407,6 +413,35 @@ cmf panel <spec.yaml> -o <output>
 ```bash
 cmf panel examples/pes/pages/slepice.yaml -o panel.png --row 0 --col 1
 cmf panel examples/pes/pages/kosticka.yaml -o panels/ --all
+```
+
+### `character` — render one character on its own
+
+Quick visual test of a single character — no page, no panel, just the composed
+character cropped to its pose on a plain canvas.
+
+```bash
+cmf character <name> [selection ...] --library <dir>
+  [-o <output>]             # default: output/<name>-<timestamp>.png
+  [--pose <pose>]           # which pose (default: the character's default)
+  [--scale 2.0]             # px per viewBox unit
+  [--bg "#ffffff"]          # canvas background colour (white by default)
+  [--flip]                  # mirror horizontally
+  [--thumb-px 320]          # body width of the small companion PNG (0 to skip)
+```
+
+Each `selection` token is either a bare name — matched first against the
+character's **poses**, then against the variants of any **slot** — or an explicit
+`key=value` (`pose=walk`, `face=happy`). Unknown tokens error with the available
+poses and slots listed.
+
+Writes **two files**: the full render at `-o`, and a smaller `<stem>.small.png`
+beside it (body ≈ `--thumb-px` wide) — read the small one to spend fewer tokens.
+
+```bash
+cmf character bara sit happy --library examples/pes/characters -o bara.png
+cmf character bara pose=walk face=neutral --library examples/pes/characters
+cmf character tom --library examples/pes/characters   # default pose -> tom.png
 ```
 
 ### `characters` — list a project's characters

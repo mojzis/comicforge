@@ -39,6 +39,14 @@ under `pages/`. Paths below assume you are working inside one project.
 3. Render:
    - comic page: `cmf render mystrip.yaml -o out.pdf`
    - single illustration: `cmf scene myscene.yaml -o out.png`
+   - one character on its own (to eyeball a pose/expression):
+     `cmf character bara sit happy --library examples/pes/characters`
+     — extra args are bare pose/variant names or `key=value` (`pose=walk`,
+     `face=happy`), rendered on a white background. Also writes a smaller
+     `…​.small.png` companion — read that one to save tokens.
+   - Omit `-o` and the file lands in the gitignored `output/` dir with a
+     timestamp (`output/<name>-<YYYYMMDD-HHMMSS>.png`), so renders accumulate and
+     you can compare how a page/character evolved. Pass `-o` to choose a path.
 4. Look at the output; adjust `x` / `y` / `scale` / `to` and re-render.
 
 ## Coordinates

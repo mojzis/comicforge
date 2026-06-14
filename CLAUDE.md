@@ -1,20 +1,10 @@
 # CLAUDE.md — working on the ComicForge engine
 
-This file is for an agent (or human) working **on the codebase**. If instead you
-want to *author a comic* with ComicForge, that's a separate concern — read the
-authoring skill at [`skills/comicforge/SKILL.md`](skills/comicforge/SKILL.md)
-(deep reference: [`skills/comicforge/reference.md`](skills/comicforge/reference.md)).
-
 ## What ComicForge is
 
 A tiny, scriptable comic-page engine. Characters are a **base SVG + stackable
 variant overlays** (faces, arms, …); a comic page is a **declarative YAML spec**;
 output is **SVG / PNG / PDF**.
-
-The engine is **content-free**: `comicforge/` ships no art — no hardcoded
-characters, default scenes, or built-in sprites. All asset directories are
-provided explicitly via the spec or CLI flags. A downstream user does
-`pip install comicforge` and brings their own art.
 
 ## Repository layout
 
