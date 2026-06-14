@@ -1,0 +1,5 @@
+viewbox: [240, 180]
+# Walking, head carried forward and a little lower — so the head-centre sits to
+# the right of and above the canonical anchor. The engine shifts the shared
+# faces by (anchor - character.anchor) = (+12, -8) to re-register them here.
+anchor: [132, 64]

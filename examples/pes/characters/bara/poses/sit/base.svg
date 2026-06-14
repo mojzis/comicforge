@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" width="240" height="180">
+  <g stroke="#21304a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- tail: brown, curling up on the right behind the body -->
+    <path d="M168 150 Q198 150 196 116" fill="none" stroke="#c47b3e" stroke-width="14"/>
+    <!-- haunches / sitting body: white, wide base -->
+    <path d="M74 170 Q66 116 120 108 Q174 116 166 170 Z" fill="#f7f7f4"/>
+    <!-- front legs, white, down the centre -->
+    <path d="M106 146 L104 172" fill="none" stroke="#f7f7f4" stroke-width="16"/>
+    <path d="M134 146 L136 172" fill="none" stroke="#f7f7f4" stroke-width="16"/>
+    <!-- front paws -->
+    <ellipse cx="103" cy="173" rx="10" ry="6" fill="#f7f7f4"/>
+    <ellipse cx="137" cy="173" rx="10" ry="6" fill="#f7f7f4"/>
+    <!-- head: white, front-facing, centre [120, 72] -->
+    <circle cx="120" cy="72" r="40" fill="#f7f7f4"/>
+    <!-- floppy ears, brown, hanging beside the head -->
+    <path d="M86 50 Q60 56 66 100 Q88 98 96 66 Z" fill="#c47b3e" stroke="#21304a"/>
+    <path d="M154 50 Q180 56 174 100 Q152 98 144 66 Z" fill="#c47b3e" stroke="#21304a"/>
+    <!-- brown patch over the dog's left eye (viewer's right) + crown -->
+    <path d="M120 38 Q150 38 152 64 Q150 84 132 86 Q120 80 120 64 Z"
+          fill="#c47b3e" stroke="none"/>
+    <!-- brown patch on the right shoulder/back -->
+    <path d="M128 112 Q160 112 162 138 Q150 150 128 146 Q120 130 128 112 Z"
+          fill="#c47b3e" stroke="none"/>
+  </g>
+</svg>

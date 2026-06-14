@@ -1,0 +1,18 @@
+# Descriptions to turn into reference images: `comicforge inspire references.yaml`.
+# Each item -> references/<id>.png + references/<id>.prompt.txt. The project theme
+# (theme.yaml, sibling of this file) supplies style, palette and mood.
+items:
+  - id: tom
+    prompt: >
+      A cheerful 8-year-old boy named Tom in a striped t-shirt and shorts,
+      full body, standing, neutral friendly expression, simple cartoon style.
+
+  - id: bara
+    prompt: >
+      A small happy brown-and-white dog named Bára, sitting, tongue out,
+      floppy ears, full body, simple cartoon style.
+
+  - id: dvur
+    prompt: >
+      A sunny Czech village farmyard: a wooden fence, a small chicken coop,
+      a few hens pecking, a cobbled yard, a tree to one side.

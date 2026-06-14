@@ -1,9 +1,10 @@
 """Command line interface.
 
-python -m comicforge render projects/slepice/page.yaml -o out.pdf
-python -m comicforge scene  projects/dvur-scene/scene.yaml -o out.png
-python -m comicforge characters --library library/characters
-python -m comicforge scenes --scenes projects/_scenes
+python -m comicforge render examples/pes/pages/slepice.yaml -o out.pdf
+python -m comicforge scene  examples/pes/pages/dvur-scene.yaml -o out.png
+python -m comicforge characters --library examples/pes/characters
+python -m comicforge scenes --scenes examples/pes/scenes
+python -m comicforge inspire examples/pes/references.yaml --review
 """
 
 from __future__ import annotations
@@ -98,6 +99,40 @@ def main(argv=None):
         "--scenes", type=Path, required=True, help="scenes directory (required)"
     )
 
+    ins = sub.add_parser(
+        "inspire", help="generate reference images from a theme + descriptions"
+    )
+    ins.add_argument("references", type=Path, help="references spec (list of items)")
+    ins.add_argument(
+        "-o",
+        "--out",
+        type=Path,
+        default=None,
+        help="output dir (default: references/ next to the spec)",
+    )
+    ins.add_argument(
+        "--theme",
+        type=Path,
+        default=None,
+        help="theme.yaml (default: sibling of the spec)",
+    )
+    ins.add_argument(
+        "--only",
+        default=None,
+        help="generate only these ids (comma-separated)",
+    )
+    ins.add_argument(
+        "--force", action="store_true", help="regenerate even if a .png exists"
+    )
+    ins.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="write composed prompts only; no API call, no token needed",
+    )
+    ins.add_argument(
+        "--review", action="store_true", help="also write a review.html grid"
+    )
+
     args = p.parse_args(argv)
 
     if args.cmd in ("render", "scene"):
@@ -141,6 +176,20 @@ def main(argv=None):
         scenes = SceneLibrary(args.scenes)
         json.dump(scenes.manifest(), sys.stdout, indent=2, ensure_ascii=False)
         print()
+    elif args.cmd == "inspire":
+        from .inspire import generate
+
+        only = {s.strip() for s in args.only.split(",")} if args.only else None
+        out = generate(
+            args.references,
+            args.out,
+            theme_path=args.theme,
+            only=only,
+            force=args.force,
+            review=args.review,
+            dry_run=args.dry_run,
+        )
+        print(f"wrote {len(out)} file(s)")
 
 
 if __name__ == "__main__":

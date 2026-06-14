@@ -1,0 +1,4 @@
+viewbox: [240, 180]
+# Head-centre in this pose == the canonical anchor, so the shared faces land
+# unshifted.
+anchor: [120, 72]

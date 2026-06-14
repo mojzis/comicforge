@@ -7,15 +7,16 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
     px_per_mm: 4                     # render scale
     margin_mm: 12
     gutter_mm: 5
-    library: "../../library/characters"   # path to character library dir
-    scenes_dir: "../../projects/_scenes"  # path to scenes dir
-    pixel_dir: "../../library/pixel"      # path to pixel-art library dir
+    library: "../characters"   # path to character dir
+    scenes_dir: "../scenes"    # path to scenes dir
+    pixel_dir: "../pixel"      # path to pixel-art dir
     rows:
       - height: 1.0                  # relative weight (optional, default 1)
         panels:
           - bg: "#fbfaf6"            # optional panel background
             actors:
               - char: tom
+                pose: walk           # optional; defaults to the character's default pose
                 face: happy          # any slot -> variant
                 arms: wave
                 x: 0.35  y: 0.62     # centre, panel fraction
@@ -50,9 +51,9 @@ import yaml
 
 from . import pixelart
 from .bubbles import FONT, INK, bubble
-from .library import Character, Library
+from .library import Library
 from .pixelart import PixelLibrary
-from .scene import SceneLibrary
+from .scene import Scene, SceneLibrary
 from .scene import cover as scene_cover
 
 PAGE = {"A4": (210, 297), "A5": (148, 210), "letter": (216, 279)}
@@ -91,7 +92,7 @@ def _require_dir(path: Path | None, label: str) -> Path:
 class _NullSceneLibrary:
     """Placeholder used when no scenes_dir is configured."""
 
-    def get(self, name: str) -> Character:
+    def get(self, name: str) -> Scene:
         raise KeyError(
             f"scene '{name}' requested but no scenes_dir was provided. "
             "Set 'scenes_dir:' in the spec or pass --scenes on the CLI."
@@ -308,7 +309,8 @@ def _render_panel(
     # actors
     for a in panel.get("actors", []):
         char = lib.get(a["char"])
-        selection = {s: a[s] for s in char.slots if s in a}
+        pose = a.get("pose")
+        selection = {s: a[s] for s in char.slots_for(pose) if s in a}
         out.append(
             char.place(
                 selection,
@@ -316,6 +318,7 @@ def _render_panel(
                 cy=ay(a.get("y", 0.6)),
                 height=a.get("scale", 0.8) * ph,
                 flip=a.get("flip", False),
+                pose=pose,
             )
         )
 

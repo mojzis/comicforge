@@ -1,0 +1,22 @@
+# Project-wide visual theme for generated reference images (`comicforge inspire`).
+# This shapes inspiration art only — the shipped assets are hand/LLM-authored SVG.
+style: >
+  Hand-drawn children's-book comic illustration. Bold, clean black ink outlines
+  with flat cheerful fills and simple friendly shapes. Light, uncluttered
+  background. Centered subject filling the frame.
+
+# Color scale fed to the model as guidance.
+palette:
+  - "#f4d35e"  # sunny yellow
+  - "#ee964b"  # warm orange
+  - "#0d3b66"  # deep blue
+  - "#faf0ca"  # cream
+  - "#f95738"  # coral
+
+mood: warm, playful, gentle
+
+# Always discourage text/marks in the output.
+negative: No text, no letters, no words, no watermark, no signature.
+
+aspect_ratio: "1:1"
+# model: google/imagen-3   # override the default Replicate model here

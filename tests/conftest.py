@@ -8,28 +8,29 @@ from comicforge.render import load_spec
 from comicforge.scene import SceneLibrary
 
 ROOT = Path(__file__).resolve().parent.parent
+PES = ROOT / "examples" / "pes"
 
 
 @pytest.fixture
 def library():
-    return Library(ROOT / "library" / "characters")
+    return Library(PES / "characters")
 
 
 @pytest.fixture
 def scenes():
-    return SceneLibrary(ROOT / "projects" / "_scenes")
+    return SceneLibrary(PES / "scenes")
 
 
 @pytest.fixture
 def pixel():
-    return PixelLibrary(ROOT / "library" / "pixel")
+    return PixelLibrary(PES / "pixel")
 
 
 @pytest.fixture
 def illustration_spec():
-    return load_spec(ROOT / "projects" / "dvur-scene" / "scene.yaml")
+    return load_spec(PES / "pages" / "dvur-scene.yaml")
 
 
 @pytest.fixture(params=["slepice", "kosticka"])
 def example_spec(request):
-    return load_spec(ROOT / "projects" / request.param / "page.yaml")
+    return load_spec(PES / "pages" / f"{request.param}.yaml")

@@ -1,0 +1,14 @@
+name: bara
+label: Bára
+# Canonical reference point the SHARED overlays (faces) are drawn around — here
+# the centre of the head. Each pose says where its own head lands (pose.yaml
+# `anchor:`) and the engine shifts the shared faces to match.
+anchor: [120, 72]
+# Shared across every pose, re-anchored per pose:
+slots:
+  face: [neutral, happy]
+default:
+  pose: sit
+  face: neutral
+# Each pose is a sub-directory under poses/ with its own base.svg + pose.yaml.
+poses: [sit, walk]

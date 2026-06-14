@@ -3,16 +3,16 @@ page: A4
 px_per_mm: 4
 margin_mm: 14
 gutter_mm: 6
-library: "../../library/characters"
-scenes_dir: "../../projects/_scenes"
-pixel_dir: "../../library/pixel"
+library: "../characters"
+scenes_dir: "../scenes"
+pixel_dir: "../pixel"
 
 rows:
   - height: 1.0
     panels:
       - scene: pokoj
         actors:
-          - {char: bara, face: neutral, x: 0.42, y: 0.74, scale: 0.5}
+          - {char: bara, pose: walk, face: neutral, x: 0.42, y: 0.74, scale: 0.5}
         pixel:
           - {art: bone, x: 0.8, y: 0.68, scale: 0.14}
         bubbles:

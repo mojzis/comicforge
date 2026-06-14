@@ -23,5 +23,13 @@ di/
 *.png
 *.pdf
 
+# Generated reference images (`comicforge inspire`) — inspiration only, not assets
+**/references/
+*.prompt.txt
+review.html
+
+# API credentials for `comicforge inspire`
+.env
+
 # Source archive (redundant after flattening)
 *.zip

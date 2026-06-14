@@ -28,7 +28,7 @@ def test_render_spec_writes_png(example_spec, library, scenes, pixel, tmp_path):
 
 
 def test_render_spec_loads_spec_from_path(tmp_path, library, scenes, pixel):
-    spec_path = ROOT / "projects" / "slepice" / "page.yaml"
+    spec_path = ROOT / "examples" / "pes" / "pages" / "slepice.yaml"
     out = tmp_path / "from_path.svg"
     render_spec(spec_path, out, library=library, pixel_library=pixel)
     assert out.read_text(encoding="utf-8").lstrip().startswith("<svg")
@@ -37,7 +37,7 @@ def test_render_spec_loads_spec_from_path(tmp_path, library, scenes, pixel):
 def test_render_spec_by_path_resolves_relative_dirs(tmp_path):
     """Spec loaded by path must resolve library:/pixel_dir: relative to the spec
     file's directory — no library or pixel_library overrides passed."""
-    spec_path = ROOT / "projects" / "slepice" / "page.yaml"
+    spec_path = ROOT / "examples" / "pes" / "pages" / "slepice.yaml"
     out = tmp_path / "slepice_resolved.svg"
     render_spec(spec_path, out)
     svg = out.read_text(encoding="utf-8")

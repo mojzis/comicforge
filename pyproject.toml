@@ -9,8 +9,17 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+# `comicforge inspire` — generate reference images via the Replicate API.
+# python-dotenv is optional convenience; the command falls back to os.environ.
+inspire = [
+    "replicate>=1.0",
+    "python-dotenv>=1.0",
+]
+
 [project.scripts]
 comicforge = "comicforge.cli:main"
+cmf = "comicforge.cli:main"
 
 [build-system]
 requires = ["hatchling"]
