@@ -1,0 +1,47 @@
+title: "Kostička"
+page: A4
+px_per_mm: 4
+margin_mm: 14
+gutter_mm: 6
+library: "../../library/characters"
+scenes_dir: "../../projects/_scenes"
+pixel_dir: "../../library/pixel"
+
+rows:
+  - height: 1.0
+    panels:
+      - scene: pokoj
+        actors:
+          - {char: bara, face: neutral, x: 0.42, y: 0.74, scale: 0.5}
+        pixel:
+          - {art: bone, x: 0.8, y: 0.68, scale: 0.14}
+        bubbles:
+          - text: "Co to tu voní?"
+            kind: thought
+            x: 0.4
+            y: 0.22
+            to: [0.5, 0.55]
+      - scene: {name: dvur, weather: clear}
+        actors:
+          - {char: tom, face: laugh, arms: thumbsup, x: 0.4, y: 0.66, scale: 0.86}
+          - {char: bara, face: happy, x: 0.74, y: 0.78, scale: 0.46}
+        bubbles:
+          - text: "Tady máš kostičku!"
+            kind: speech
+            x: 0.5
+            y: 0.18
+            to: [0.4, 0.42]
+
+  - height: 1.0
+    panels:
+      - actors:
+          - {char: bara, face: happy, x: 0.5, y: 0.74, scale: 0.55}
+        pixel:
+          - {art: heart, x: 0.78, y: 0.28, scale: 0.16}
+          - {art: star, x: 0.2, y: 0.3, scale: 0.12}
+        bubbles:
+          - text: "Mňam! Děkuju! Haf haf!"
+            kind: shout
+            x: 0.5
+            y: 0.2
+            to: [0.5, 0.5]

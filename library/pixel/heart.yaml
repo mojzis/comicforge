@@ -1,0 +1,11 @@
+palette:
+  R: "#e8556d"
+  r: "#b83e54"
+grid:
+  - ".RR..RR."
+  - "RRRRRRRR"
+  - "RRRRRRRR"
+  - "RRRRRRRR"
+  - ".RRRRRR."
+  - "..RRRR.."
+  - "...RR..."

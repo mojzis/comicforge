@@ -66,29 +66,36 @@ def bubble(text, bx, by, tail=None, kind="speech", max_chars=22,
 
 
 def _tail(bx, by, w, h, tail, kind):
+    """A slim tail that drops from the bubble underside and points toward the
+    target — but stops well short of it, so the tip never reaches the figure."""
     tx, ty = tail
-    ang = math.atan2(ty - by, tx - bx)
-    # exit point on the bubble's bounding ellipse toward the target
-    ex = bx + math.cos(ang) * (w / 2) * 0.82
-    ey = by + math.sin(ang) * (h / 2) * 0.82
+    # exit from the bottom edge, nudged horizontally toward the target but kept
+    # under the bubble body
+    ex = min(max(tx, bx - w * 0.3), bx + w * 0.3)
+    ey = by + h / 2
+    dx, dy = tx - ex, ty - ey
+    dist = math.hypot(dx, dy) or 1.0
+    reach = min(dist * 0.45, 46)  # capped length keeps the tip off the figure
+    ux, uy = dx / dist, dy / dist
+    tipx, tipy = ex + ux * reach, ey + uy * reach
+
     if kind == "thought":
         dots = ""
-        for f in (0.45, 0.72, 0.92):
-            px = ex + (tx - ex) * f
-            py = ey + (ty - ey) * f
-            r = 7 * (1 - f) + 2
-            dots += (f'<circle cx="{px:.1f}" cy="{py:.1f}" r="{r:.1f}" '
+        for f in (0.45, 0.74, 1.0):
+            r = 6 * (1 - f) + 2.5
+            dots += (f'<circle cx="{ex + ux * reach * f:.1f}" '
+                     f'cy="{ey + uy * reach * f:.1f}" r="{r:.1f}" '
                      f'fill="#ffffff" stroke="{INK}" stroke-width="2.5"/>')
         return dots
-    # solid triangle tail for speech/shout
-    perp = ang + math.pi / 2
-    spread = 11
-    ax = ex + math.cos(perp) * spread
-    ay = ey + math.sin(perp) * spread
-    bx2 = ex - math.cos(perp) * spread
-    by2 = ey - math.sin(perp) * spread
-    return (f'<path d="M{ax:.1f} {ay:.1f} L{tx:.1f} {ty:.1f} L{bx2:.1f} {by2:.1f} Z" '
-            f'fill="#ffffff" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>')
+    # narrow tapered tail for speech/shout
+    perp = math.atan2(uy, ux) + math.pi / 2
+    base = 6
+    ax = ex + math.cos(perp) * base
+    ay = ey + math.sin(perp) * base
+    bx2 = ex - math.cos(perp) * base
+    by2 = ey - math.sin(perp) * base
+    return (f'<path d="M{ax:.1f} {ay:.1f} L{tipx:.1f} {tipy:.1f} L{bx2:.1f} {by2:.1f} Z" '
+            f'fill="#ffffff" stroke="{INK}" stroke-width="2.5" stroke-linejoin="round"/>')
 
 
 def _cloud(x, y, w, h):

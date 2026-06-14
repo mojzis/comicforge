@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 320" width="200" height="320">
+  <g stroke="#21304a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- legs -->
+    <path d="M84 238 L80 300" fill="none" stroke="#2f3a4f" stroke-width="17"/>
+    <path d="M116 238 L120 300" fill="none" stroke="#2f3a4f" stroke-width="17"/>
+    <!-- shoes -->
+    <path d="M62 300 Q80 316 96 305 L94 296 Q80 303 70 296 Z" fill="#21304a" stroke-width="3"/>
+    <path d="M104 305 Q120 316 138 300 L130 296 Q120 303 106 296 Z" fill="#21304a" stroke-width="3"/>
+    <!-- torso -->
+    <path d="M72 160 Q100 150 128 160 L122 236 Q100 245 78 236 Z" fill="#4c8bf5"/>
+    <!-- shirt shading (right side) -->
+    <path d="M100 154 L128 160 L122 236 Q111 241 100 240 Z"
+          fill="#3a6fcf" stroke="none"/>
+    <!-- collar -->
+    <path d="M86 157 Q100 167 114 157" fill="none" stroke="#21304a" stroke-width="3"/>
+    <!-- neck -->
+    <path d="M100 138 L100 156" stroke="#f3c9a0" stroke-width="18" stroke-linecap="butt"/>
+    <path d="M104 138 L104 156" stroke="#d9a679" stroke-width="6" stroke-linecap="butt"/>
+    <!-- ears -->
+    <circle cx="52" cy="97" r="9" fill="#f3c9a0"/>
+    <circle cx="148" cy="97" r="9" fill="#f3c9a0"/>
+    <!-- head -->
+    <circle cx="100" cy="92" r="50" fill="#f3c9a0"/>
+    <!-- hair -->
+    <path d="M51 92 Q48 42 100 42 Q152 42 149 92 Q140 64 100 62 Q60 64 51 92 Z"
+          fill="#6b4a2b" stroke="none"/>
+    <!-- hair highlight + cowlick -->
+    <path d="M66 58 Q100 48 134 58" fill="none" stroke="#9c7142" stroke-width="4"/>
+    <path d="M100 62 Q104 49 116 46" fill="none" stroke="#6b4a2b" stroke-width="5"/>
+  </g>
+</svg>

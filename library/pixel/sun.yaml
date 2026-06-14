@@ -1,0 +1,13 @@
+palette:
+  Y: "#f4c430"
+  o: "#e8923a"
+grid:
+  - "...Y.Y..."
+  - "Y..YYY..Y"
+  - ".YoYYYoY."
+  - "..YYYYY.."
+  - "YYYYYYYYY"
+  - "..YYYYY.."
+  - ".YoYYYoY."
+  - "Y..YYY..Y"
+  - "...Y.Y..."

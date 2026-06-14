@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <!-- sky -->
+  <rect x="0" y="0" width="320" height="132" fill="#bfe2f5"/>
+  <circle cx="268" cy="42" r="26" fill="#f4c945"/>
+  <!-- rolling hills -->
+  <path d="M0 132 Q80 98 168 124 Q244 146 320 116 L320 132 Z" fill="#7cbb55"/>
+  <!-- ground -->
+  <rect x="0" y="128" width="320" height="72" fill="#9ad06a"/>
+  <!-- fence -->
+  <g stroke="#a7702f" stroke-width="6" stroke-linecap="round">
+    <path d="M18 150 L18 180"/>
+    <path d="M46 150 L46 180"/>
+    <path d="M74 150 L74 180"/>
+    <path d="M8 158 L84 158"/>
+    <path d="M8 171 L84 171"/>
+  </g>
+  <!-- chicken coop -->
+  <rect x="212" y="122" width="80" height="56" fill="#caa06a" stroke="#21304a" stroke-width="3"/>
+  <path d="M206 122 L252 96 L298 122 Z" fill="#8c4a2f" stroke="#21304a" stroke-width="3"/>
+  <rect x="240" y="142" width="24" height="36" fill="#a7702f" stroke="#21304a" stroke-width="3"/>
+  <circle cx="246" cy="160" r="2.5" fill="#21304a"/>
+  <!-- a chicken -->
+  <g stroke="#21304a" stroke-width="2.5">
+    <ellipse cx="122" cy="168" rx="14" ry="11" fill="#ffffff"/>
+    <circle cx="135" cy="158" r="7" fill="#ffffff"/>
+    <path d="M132 151 Q134 146 137 150 Q139 146 141 151" fill="#d9434f" stroke="none"/>
+    <path d="M141 159 L149 161 L141 163 Z" fill="#f4c945" stroke="none"/>
+    <circle cx="137" cy="158" r="1.4" fill="#21304a" stroke="none"/>
+    <path d="M117 178 L115 184 M126 178 L126 184" stroke="#f4c945"/>
+  </g>
+</svg>

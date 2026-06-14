@@ -3,6 +3,8 @@ page: A4
 px_per_mm: 4
 margin_mm: 14
 gutter_mm: 6
+library: "../../library/characters"
+pixel_dir: "../../library/pixel"
 
 rows:
   - height: 1.0
@@ -13,9 +15,7 @@ rows:
         bubbles:
           - text: "Báro, hlídej slepice!"
             kind: speech
-            x: 0.5
-            y: 0.18
-            to: [0.36, 0.42]
+            speaker: tom
       - actors:
           - {char: bara, face: happy, x: 0.45, y: 0.74, scale: 0.55}
         pixel:
@@ -23,9 +23,7 @@ rows:
         bubbles:
           - text: "Hlídám! Haf!"
             kind: shout
-            x: 0.46
-            y: 0.22
-            to: [0.5, 0.5]
+            speaker: bara
 
   - height: 1.0
     panels:
@@ -36,9 +34,7 @@ rows:
         bubbles:
           - text: "Kdyby tak byla nějaká kost..."
             kind: thought
-            x: 0.42
-            y: 0.24
-            to: [0.5, 0.55]
+            speaker: bara
       - actors:
           - {char: tom, face: surprised, arms: point, x: 0.4, y: 0.66, scale: 0.86}
         pixel:
@@ -46,6 +42,4 @@ rows:
         bubbles:
           - text: "Hodná holka!"
             kind: speech
-            x: 0.52
-            y: 0.2
-            to: [0.42, 0.45]
+            speaker: tom

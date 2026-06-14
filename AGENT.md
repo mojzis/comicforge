@@ -4,10 +4,14 @@ You write a **comic page as a YAML spec**; the engine renders it to SVG/PNG/PDF.
 This file is the full contract. Nothing else is needed to author a page.
 
 ## Loop
-1. Read the character library: `python -m comicforge characters` → JSON of every
-   character, its **slots**, the **variants** per slot, and the defaults.
+1. Read the libraries:
+   - `uv run comicforge characters` → JSON of every character, its **slots**,
+     the **variants** per slot, and the defaults.
+   - `uv run comicforge scenes` → JSON of every scene background and its slots.
 2. Write a spec (see grammar below).
-3. Render: `python -m comicforge render mystrip.yaml -o out.pdf`
+3. Render:
+   - comic page: `uv run comicforge render mystrip.yaml -o out.pdf`
+   - single illustration: `uv run comicforge scene myscene.yaml -o out.png`
 4. Look at the output; adjust `x` / `y` / `scale` / `to` and re-render.
 
 ## Coordinates
@@ -27,7 +31,8 @@ rows:                             # page is a stack of rows…
   - height: 1.0                   # relative row height (default 1)
     panels:                       # …each row is a left→right list of panels
       - width: 1.0                # relative panel width (default 1)
-        bg: "#fbfaf6"             # optional panel background
+        bg: "#fbfaf6"             # optional flat panel background
+        scene: dvur               # optional scene background (see below)
         actors: [ ... ]           # characters (drawn back→front in list order)
         pixel:  [ ... ]           # pixel-art sprites (drawn behind actors)
         bubbles:[ ... ]           # speech/thought/shout (drawn on top)
@@ -43,21 +48,48 @@ rows:                             # page is a stack of rows…
   scale: 0.85       # height as fraction of panel height
   flip: false       # mirror horizontally (face the other way)
 ```
-Slots are per character. `tom` has `face` (neutral/happy/surprised/sad) and
-`arms` (down/wave/point); `bara` has `face` (neutral/happy). Always confirm
-against `comicforge characters` — never guess a variant that isn't listed.
+Slots are per character. `tom` has `face`
+(neutral/happy/surprised/sad/angry/laugh/wink) and `arms`
+(down/wave/point/crossed/hips/thumbsup); `bara` has `face` (neutral/happy).
+Always confirm against `comicforge characters` — never guess a variant that
+isn't listed.
+
+### scene (panel background)
+A scene is a reusable illustrated background, scaled to *cover* the panel.
+```yaml
+scene: dvur                 # just the name…
+scene: {name: dvur, weather: rain}   # …or pick scene slot variants
+```
+Confirm scenes/slots with `comicforge scenes`. Seeds: `dvur` (farmyard, slot
+`weather: clear|rain`), `pokoj` (room, no slots).
+
+## Standalone illustration (no comic grid)
+Render one scene filling the whole canvas with actors/bubbles on top — good for
+covers and single panels. Render with `comicforge scene file.yaml -o out.png`:
+```yaml
+title: "Optional"
+scene: {name: dvur, weather: clear}
+scale: 3                    # px per scene unit (canvas = scene viewbox × scale)
+actors:  [ ... ]            # same actor grammar; x/y/scale are canvas fractions
+pixel:   [ ... ]
+bubbles: [ ... ]
+```
 
 ### bubble
 ```yaml
 - text: "Ahoj!"
   kind: speech      # speech | thought | shout
-  x: 0.5            # bubble centre (panel fraction)
-  y: 0.18
-  to: [0.4, 0.5]    # OPTIONAL tail target (panel fraction), usually a mouth
+  speaker: tom      # OPTIONAL: auto-place above this actor + aim the tail at
+                    #           their head. Prefer this over manual x/y/to.
+  x: 0.5            # OPTIONAL bubble centre (panel fraction); else from speaker
+  y: 0.18           # OPTIONAL; omit and bubbles stack downward without overlap
+  to: [0.4, 0.5]    # OPTIONAL tail target (panel fraction); else speaker's head
   max_chars: 22     # wrap width (optional)
   fs: 16            # font size px (optional)
 ```
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.
+The tail is a slim line dropping from the bubble underside; its tip is capped
+short so it never overlaps the figure.
 
 ### pixel art
 ```yaml
@@ -84,6 +116,17 @@ Create `characters/<name>/`:
   ```
 All variants share the base canvas, so "posing" = swapping which overlays stack.
 For a brand-new pose, add one overlay SVG and list it under `slots`.
+
+> Tip: the seed art is hand/LLM-authored clean SVG (see `tools/make_assets.py`).
+> A visual model is useful as *inspiration* for a character or scene — generate a
+> reference image for ideas, then author the crisp SVG by hand. Don't auto-vectorize:
+> it breaks overlay registration and the editable slot structure.
+
+## Adding a scene (no code)
+Create `scenes/<name>/` exactly like a character but with `scene.yaml` instead of
+`character.yaml`. `base.svg` is the full background (drawn in its own viewBox);
+optional `<slot>-<variant>.svg` overlays add weather/props. It is scaled to cover
+whatever panel (or canvas) it's placed in.
 
 ## Notes / limits (v0.1)
 - "Poses" are pre-drawn overlay presets, not an articulated skeleton.

@@ -1,0 +1,11 @@
+palette:
+  W: "#efe7d0"
+  g: "#b8ad90"
+  o: "#6b5d3e"
+grid:
+  - "og.....go"
+  - "oWWo.oWWo"
+  - ".oWWWWWo."
+  - ".oWWWWWo."
+  - "oWWo.oWWo"
+  - "og.....go"

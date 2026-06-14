@@ -1,9 +1,0 @@
-name: tom
-label: Tom
-viewbox: [200, 320]
-default:
-  face: neutral
-  arms: down
-slots:
-  arms: [down, wave, point]
-  face: [neutral, happy, surprised, sad]

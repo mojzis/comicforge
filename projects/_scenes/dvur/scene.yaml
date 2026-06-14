@@ -1,0 +1,7 @@
+name: dvur
+label: Dvůr
+viewbox: [320, 200]
+default:
+  weather: clear
+slots:
+  weather: [clear, rain]

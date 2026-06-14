@@ -1,0 +1,20 @@
+# Standalone illustration: a single scene filling the canvas, no comic grid.
+#   uv run comicforge scene projects/dvur-scene/scene.yaml -o dvur.png
+title: "Na dvoře"
+scene:
+  name: dvur
+  weather: clear
+scale: 3
+library: "../../library/characters"
+scenes_dir: "../../projects/_scenes"
+
+actors:
+  - {char: bara, face: happy, x: 0.34, y: 0.82, scale: 0.42}
+  - {char: tom, face: laugh, arms: wave, x: 0.66, y: 0.78, scale: 0.62}
+
+bubbles:
+  - text: "Krásný den na dvoře!"
+    kind: speech
+    x: 0.6
+    y: 0.46
+    to: [0.64, 0.62]

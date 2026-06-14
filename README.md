@@ -7,36 +7,57 @@ text — see [`AGENT.md`](AGENT.md).
 
 ## Install
 ```bash
-pip install cairosvg pyyaml        # the only deps
-python tools/make_assets.py        # (re)generate the seed character art
+uv sync                            # create .venv and install deps
+uv run python tools/make_assets.py # (re)generate the seed character art
 ```
 
 ## Use
 ```bash
-# render the example
-python -m comicforge render examples/hello.yaml -o hello.pdf
-python -m comicforge render examples/hello.yaml -o hello.png
+# render an example comic page
+uv run comicforge render examples/slepice/page.yaml -o slepice.pdf
+uv run comicforge render examples/slepice/page.yaml -o slepice.png
 
-# print the machine-readable character contract (characters, slots, variants)
-python -m comicforge characters
+# render a standalone scene illustration (one background, no comic grid)
+uv run comicforge scene examples/dvur-scene/scene.yaml -o dvur.png
+
+# render individual panels at low res for quick review
+uv run comicforge panel examples/slepice/page.yaml -o panel.png --row 0 --col 0
+uv run comicforge panel examples/slepice/page.yaml -o panels/ --all --scale 0.5
+
+# print the machine-readable contracts (characters / scenes, slots, variants)
+uv run comicforge characters
+uv run comicforge scenes
 ```
 
 Or from Python:
 ```python
 from comicforge import render_spec
-render_spec("examples/hello.yaml", "out.pdf")
+render_spec("examples/slepice/page.yaml", "out.pdf")
 ```
+
+## Library vs. projects
+The **library** is the engine — the `comicforge/` package, the shared character
+art under `characters/`, and the asset generator in `tools/`. **Projects** are the
+comics you author with it: a project is just a directory holding one `page.yaml`
+spec (and optionally its own `characters/` referenced via the spec's `library:`
+key). The starter projects live under [`examples/`](examples/).
 
 ## How it fits together
 ```
 characters/<name>/         base.svg + <slot>-<variant>.svg + character.yaml
+scenes/<name>/             base.svg + <slot>-<variant>.svg + scene.yaml
 comicforge/library.py      loads a character, stacks base+overlays, places it
+comicforge/scene.py        loads a scene, stacks overlays, scales it to cover a box
 comicforge/bubbles.py      speech / thought / shout bubbles with word-wrap + tail
 comicforge/pixelart.py     grid+palette -> SVG sprite (heart/sun/star/bone + custom)
-comicforge/render.py       A4 row/panel layout -> one SVG -> PNG/PDF (cairosvg)
-comicforge/cli.py          `render` and `characters` commands
+comicforge/render.py       row/panel pages + standalone scenes -> SVG -> PNG/PDF
+comicforge/cli.py          `render`, `scene`, `characters`, `scenes` commands
 tools/make_assets.py       procedurally writes the seed library (edit & re-run)
 ```
+
+Characters and scenes share one model: a `base.svg` plus stackable
+`<slot>-<variant>.svg` overlays in a common viewBox. Characters are *placed* at a
+height; scenes are *scaled to cover* a panel or the whole illustration canvas.
 
 ## Design choices
 - **Base + overlays** in one shared local canvas → "posing" is just choosing which
