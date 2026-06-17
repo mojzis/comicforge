@@ -1,6 +1,6 @@
 [project]
 name = "comicforge"
-version = "0.0.1"
+version = "0.0.2"
 description = "A tiny, scriptable comic-page engine — author comics as YAML, render to SVG / PNG / PDF"
 readme = "README.md"
 requires-python = ">=3.13"
