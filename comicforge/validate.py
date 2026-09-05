@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import raster
+from . import caption, raster
 from .library import Library
 from .pixelart import PixelLibrary
 from .render import ANCHORS, _as_list, _build_libs, load_spec, spec_type
@@ -34,7 +34,17 @@ _ACTOR_RESERVED = {"char", "pose", "x", "y", "scale", "flip"}
 _SCENE_RESERVED = {"name"}
 _BUBBLE_KINDS = {"speech", "thought", "shout"}
 # every key `_render_panel` reads off a panel; anything else is a typo
-_PANEL_KEYS = {"width", "bg", "frame", "scene", "image", "actors", "pixel", "bubbles"}
+_PANEL_KEYS = {
+    "width",
+    "bg",
+    "frame",
+    "caption",
+    "scene",
+    "image",
+    "actors",
+    "pixel",
+    "bubbles",
+}
 _IMAGE_KEYS = {"src", "fit"}
 
 
@@ -181,6 +191,10 @@ def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
 
 def _check_panel(panel, libs, where, problems, spec_dir=None) -> None:
     lib, scenes, pxlib = libs
+    try:
+        caption.normalize(panel.get("caption"))
+    except ValueError as e:
+        problems.append(f"{where}: {e}")
     if panel.get("scene") is not None:
         _check_scene(panel["scene"], scenes, where, problems)
     if panel.get("image") is not None:

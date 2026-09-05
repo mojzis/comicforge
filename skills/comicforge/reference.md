@@ -603,8 +603,11 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 - **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
   (fixed; weighted rows share the rest, all-fixed leaves the bottom blank),
   `rows[].panels[].width` (relative weight), panel keys: `bg`, `frame`
-  (per-panel override), `scene`, `image`, `actors`, `pixel`, `bubbles` —
-  `validate` flags any other panel key as a typo
+  (per-panel override), `caption` (narration band under the art, inside the
+  frame: a string or `{text, max_chars}`; page-wide `caption_style` with
+  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`, `align`, `rule`),
+  `scene`, `image`, `actors`, `pixel`, `bubbles` — `validate` flags any other
+  panel key as a typo
 - **Image keys**: `image: path.png` or `image: {src:, fit:}` with
   `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
   (fit inside + letterbox). The path resolves against the spec file's dir and

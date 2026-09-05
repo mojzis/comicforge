@@ -98,6 +98,8 @@ rows:                             # page is a stack of rows…
       - width: 1.0                # relative panel width (default 1)
         bg: "#fbfaf6"             # optional flat panel background
         frame: {width: 0}         # optional per-panel outline override
+        caption: "Rain came."     # narration band under the art, inside the
+                                  #   frame; or {text:, max_chars:}
         scene: dvur               # optional scene background (see below)
         image: "art/01.png"       # optional raster background (see below)
         actors: [ ... ]           # characters (drawn back→front in list order)
@@ -238,6 +240,14 @@ bubble_style:
                     #   handwriting font, so bubbles hug the words
 rows: [ ... ]
 ```
+
+**Captions** — narration, as opposed to a character's bubble — go in a band
+along the bottom of the panel, inside the frame, separated from the art by a
+hairline in the frame colour. The art box shrinks to make room, so bubble and
+actor coordinates stay relative to the picture. Page-wide look via
+`caption_style` (`font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`,
+`align: left|center`, `rule`); `comicforge.caption.height(text, style)` tells
+you how tall a band will be, for sizing rows.
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.
 The tail is a slim line dropping from the bubble underside; its tip is capped

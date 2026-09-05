@@ -13,6 +13,11 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
       width: 3.5                     # overrides); width 0 = no outline
       color: "#21304a"
       radius: 10                     # corner radius, also clips the art
+    caption_style:                   # page-wide caption look, see caption.DEFAULT_STYLE
+      font_size: 13
+      pad: 8
+      max_chars: 60
+      align: left                    # left | center
     bubble_style:                    # page-wide bubble look, see bubbles.DEFAULT_STYLE
       font_size: 16
       pad: 14
@@ -28,6 +33,8 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
                                      # weighted rows share what fixed rows leave
         panels:
           - bg: "#fbfaf6"            # optional panel background
+            caption: "Rain came."    # narration band under the art, inside
+                                     # the frame; or {text:, max_chars:}
             image: "art/01.png"      # optional raster background, scaled to
                                      # cover the panel; or {src:, fit:}
             actors:
@@ -76,7 +83,7 @@ from xml.sax.saxutils import escape
 import cairosvg
 import yaml
 
-from . import pixelart, raster
+from . import caption, pixelart, raster
 from .bubbles import FONT, INK, bubble, bubble_size, resolve_style
 from .library import Library
 from .pixelart import PixelLibrary
@@ -258,6 +265,7 @@ def build_svg(
                 pxlib,
                 bubble_style=spec.get("bubble_style"),
                 frame=spec.get("frame"),
+                caption_style=spec.get("caption_style"),
                 spec_dir=spec_dir,
             )
         )
@@ -319,6 +327,7 @@ def build_panel_svg(
                 pxlib,
                 bubble_style=spec.get("bubble_style"),
                 frame=spec.get("frame"),
+                caption_style=spec.get("caption_style"),
                 spec_dir=spec_dir,
             )
             return (
@@ -378,6 +387,7 @@ def build_scene_svg(
         pxlib,
         border=False,
         bubble_style=spec.get("bubble_style"),
+        caption_style=spec.get("caption_style"),
         spec_dir=spec_dir,
     )
     parts = [
@@ -592,6 +602,7 @@ def _render_panel(
     border=True,
     bubble_style=None,
     frame=None,
+    caption_style=None,
     spec_dir=None,
 ) -> str:
     bg = panel.get("bg", "#fbfaf6")
@@ -604,6 +615,17 @@ def _render_panel(
         f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
         f'fill="{bg}"/>',
     ]
+    # a caption band takes the bottom of the box; the art gets what is left,
+    # so every panel-fraction coordinate below is relative to the picture
+    cap = caption.normalize(panel.get("caption"))
+    cst = caption.resolve_style(caption_style)
+    box_h = ph
+    if cap is not None:
+        band_h = caption.height(cap, cst)
+        ph = ph - band_h
+        out.append(
+            caption.band(cap, cst, px, py + ph, pw, band_h, fr["color"], fr["width"])
+        )
 
     def ax(fx):  # panel fraction -> page px
         return px + fx * pw
@@ -659,7 +681,7 @@ def _render_panel(
     # crisp panel border on top of clipped content
     if border and fr["width"] > 0:
         out.append(
-            f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
+            f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{box_h:.1f}" '
             f'rx="{fr["radius"]}" fill="none" stroke="{fr["color"]}" '
             f'stroke-width="{fr["width"]}"/>'
         )
