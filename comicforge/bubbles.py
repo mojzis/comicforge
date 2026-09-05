@@ -24,6 +24,7 @@ DEFAULT_STYLE = {
     "fill": "#ffffff",
     "ink": INK,  # text colour
     "uppercase": False,
+    "em": 1.0,  # width scale for the text measure: <1 for a narrower font
 }
 
 
@@ -72,11 +73,11 @@ def text_width(text: str, fs: float) -> float:
     return sum(em(ch) for ch in text) * fs
 
 
-def _box(text, max_chars, fs, pad):
+def _box(text, max_chars, fs, pad, em=1.0):
     """Wrap *text* and return (lines, line_height, body_width, body_height)."""
     lines = _wrap(text, max_chars)
     lh = fs * 1.25
-    longest = max((text_width(ln, fs) for ln in lines), default=fs)
+    longest = max((text_width(ln, fs) * em for ln in lines), default=fs)
     w = max(longest + 2 * pad, 60)
     h = len(lines) * lh + 2 * pad
     return lines, lh, w, h
@@ -95,7 +96,7 @@ def bubble_size(text, kind="speech", max_chars=22, fs=None, pad=None, style=None
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
     pad = st["pad"] if pad is None else pad
-    _lines, _lh, w, h = _box(text, max_chars, fs, pad)
+    _lines, _lh, w, h = _box(text, max_chars, fs, pad, st["em"])
     ow, oh = _OUTSET.get(kind, (0, 0))
     return w + ow, h + oh
 
@@ -126,7 +127,7 @@ def bubble(
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
     pad = st["pad"] if pad is None else pad
-    lines, lh, w, h = _box(text, max_chars, fs, pad)
+    lines, lh, w, h = _box(text, max_chars, fs, pad, st["em"])
     x, y = bx - w / 2, by - h / 2
     txt = _text_block(lines, bx, y + pad, fs, lh, st)
 

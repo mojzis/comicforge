@@ -234,6 +234,8 @@ bubble_style:
   radius: 18        # speech-bubble corner radius
   stroke: "#21304a" # outline colour;  stroke_width: 3;  fill: "#ffffff"
   ink: "#21304a"    # text colour;  font: "DejaVu Sans, sans-serif"
+  em: 1.0           # width scale of the text measure — 0.8 for a narrow
+                    #   handwriting font, so bubbles hug the words
 rows: [ ... ]
 ```
 

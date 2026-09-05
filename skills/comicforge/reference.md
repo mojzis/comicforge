@@ -598,7 +598,8 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   `frame` (panel outline: `width` in px, 0 for none; `color`; `radius` — the
   corner radius also clips the art),
   `bubble_style` (page-wide bubble look: `font`, `font_size`, `pad`, `radius`,
-  `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`)
+  `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`, `em` — width scale of
+  the text measure for narrower fonts)
 - **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
   (fixed; weighted rows share the rest, all-fixed leaves the bottom blank),
   `rows[].panels[].width` (relative weight), panel keys: `bg`, `frame`

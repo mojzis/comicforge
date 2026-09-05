@@ -42,3 +42,9 @@ def test_tail_exits_edge_facing_target():
     above = bubble("hi", 100, 100, tail=[100, -100])
     ty = lambda svg: float(svg.split('<path d="M')[1].split()[1])  # noqa: E731
     assert ty(below) > 100 > ty(above)
+
+
+def test_em_scales_measured_width():
+    wide, _ = bubble_size("hello there wide", style={"em": 1.0})
+    narrow, _ = bubble_size("hello there wide", style={"em": 0.8})
+    assert narrow < wide
