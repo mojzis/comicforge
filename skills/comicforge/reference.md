@@ -605,7 +605,7 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   `rows[].panels[].width` (relative weight), panel keys: `bg`, `frame`
   (per-panel override), `caption` (narration band under the art, inside the
   frame: a string or `{text, max_chars}`; page-wide `caption_style` with
-  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`, `align`, `rule`),
+  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`, `align`, `rule`, `uppercase`),
   `scene`, `image`, `actors`, `pixel`, `bubbles` — `validate` flags any other
   panel key as a typo
 - **Image keys**: `image: path.png` or `image: {src:, fit:}` with

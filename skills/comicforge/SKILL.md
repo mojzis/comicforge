@@ -246,7 +246,7 @@ along the bottom of the panel, inside the frame, separated from the art by a
 hairline in the frame colour. The art box shrinks to make room, so bubble and
 actor coordinates stay relative to the picture. Page-wide look via
 `caption_style` (`font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`,
-`align: left|center`, `rule`); `comicforge.caption.height(text, style)` tells
+`align: left|center`, `rule`, `uppercase`); `comicforge.caption.height(text, style)` tells
 you how tall a band will be, for sizing rows.
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.

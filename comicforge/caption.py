@@ -23,6 +23,7 @@ DEFAULT_STYLE = {
     "max_chars": 60,  # wrap width; a panel's caption can override
     "align": "left",  # left | center
     "rule": True,  # hairline between art and band (in the frame colour)
+    "uppercase": False,
 }
 
 
@@ -47,6 +48,8 @@ def resolve_style(*layers) -> dict:
 
 def lines(caption: dict, style: dict) -> list[str]:
     text = " ".join(caption["text"].split())
+    if caption.get("uppercase", style["uppercase"]):
+        text = text.upper()
     return _wrap(text, caption.get("max_chars", style["max_chars"]))
 
 

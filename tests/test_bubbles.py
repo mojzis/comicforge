@@ -48,3 +48,15 @@ def test_em_scales_measured_width():
     wide, _ = bubble_size("hello there wide", style={"em": 1.0})
     narrow, _ = bubble_size("hello there wide", style={"em": 0.8})
     assert narrow < wide
+
+
+def test_tail_exits_side_edge_for_lateral_target():
+    # target far to the right, level with the bubble: the tail must leave the
+    # right edge, not the top or bottom
+    svg = bubble("hi", 100, 100, tail=[400, 100])
+    path = svg.split('<path d="M')[1].split('"')[0]
+    # base points share the exit x; the tip is further right than either
+    pts = [tuple(map(float, seg.split())) for seg in path.replace("Z", "").split("L")]
+    (ax, ay), (tipx, _tipy), (bx2, by2) = pts
+    assert tipx > ax and tipx > bx2
+    assert abs(ay - by2) > 5  # base spans vertically, i.e. lies on a side edge

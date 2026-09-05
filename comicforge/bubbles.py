@@ -157,10 +157,18 @@ def _tail(bx, by, w, h, tail, kind, st):
     above it) pointing toward the target — but stopping well short of it, so
     the tip never reaches the figure."""
     tx, ty = tail
-    # exit from the edge facing the target, nudged horizontally toward it but
-    # kept under the bubble body
-    ex = min(max(tx, bx - w * 0.3), bx + w * 0.3)
-    ey = by - h / 2 if ty < by - h / 2 else by + h / 2
+    # exit from the edge facing the target: a side edge when the target lies
+    # further out beside the bubble than above or below it (relative to the
+    # body's own size), else top/bottom — nudged toward the target but kept
+    # within the middle of that edge
+    over_x = (abs(tx - bx) - w / 2) / (w / 2)
+    over_y = (abs(ty - by) - h / 2) / (h / 2)
+    if over_x > 0 and over_x > over_y:
+        ex = bx - w / 2 if tx < bx else bx + w / 2
+        ey = min(max(ty, by - h * 0.3), by + h * 0.3)
+    else:
+        ex = min(max(tx, bx - w * 0.3), bx + w * 0.3)
+        ey = by - h / 2 if ty < by - h / 2 else by + h / 2
     dx, dy = tx - ex, ty - ey
     dist = math.hypot(dx, dy) or 1.0
     reach = min(dist * 0.45, 46)  # capped length keeps the tip off the figure

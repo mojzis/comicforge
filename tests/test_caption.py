@@ -58,3 +58,11 @@ def test_caption_style_and_align(library):
     assert 'text-anchor="middle" font-family' in svg
     assert 'fill="#eeeeee"' in svg
     assert 'font-size="20"' in svg
+
+
+def test_caption_uppercase(library):
+    spec = {
+        "caption_style": {"uppercase": True},
+        "rows": [{"panels": [{"caption": "Rain came."}]}],
+    }
+    assert "RAIN CAME." in build_svg(spec, library=library)
