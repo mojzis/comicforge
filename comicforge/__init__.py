@@ -7,4 +7,4 @@ Designed so an LLM (or you) can author pages as plain declarative text.
 from .pixelart import PixelLibrary  # noqa: F401
 from .render import load_spec, render_scene, render_spec  # noqa: F401
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

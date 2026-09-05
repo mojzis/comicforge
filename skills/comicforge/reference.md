@@ -592,12 +592,22 @@ Do **not** auto-vectorize the result — hand/LLM-author the SVG using it as a g
 
 For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 
-- **Page-level keys**: `title`, `page` (A4/A5/letter/[w,h]), `px_per_mm`,
-  `margin_mm`, `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`,
-  `bubble_style` (page-wide bubble defaults: `uppercase`, `font_size`)
-- **Rows and panels**: `rows[].height` (relative weight), `rows[].panels[].width`
-  (relative weight), panel keys: `bg`, `scene`, `image`, `actors`, `pixel`,
-  `bubbles` — `validate` flags any other panel key as a typo
+- **Page-level keys**: `title`, `title_style` (`font_size`, `color`, `font`),
+  `page` (A4/A5/letter/[w,h]), `bg` (paper colour), `px_per_mm`, `margin_mm`,
+  `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`,
+  `frame` (panel outline: `width` in px, 0 for none; `color`; `radius` — the
+  corner radius also clips the art),
+  `bubble_style` (page-wide bubble look: `font`, `font_size`, `pad`, `radius`,
+  `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`, `em` — width scale of
+  the text measure for narrower fonts)
+- **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
+  (fixed; weighted rows share the rest, all-fixed leaves the bottom blank),
+  `rows[].panels[].width` (relative weight), panel keys: `bg`, `frame`
+  (per-panel override), `caption` (narration band under the art, inside the
+  frame: a string or `{text, max_chars}`; page-wide `caption_style` with
+  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`, `align`, `rule`, `uppercase`),
+  `scene`, `image`, `actors`, `pixel`, `bubbles` — `validate` flags any other
+  panel key as a typo
 - **Image keys**: `image: path.png` or `image: {src:, fit:}` with
   `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
   (fit inside + letterbox). The path resolves against the spec file's dir and
@@ -607,12 +617,16 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 - **Actor keys**: `char`, `pose` (optional; defaults to the character's default
   pose), per-slot variant keys (`face`, `arms`, etc.), `x`, `y`, `scale`, `flip`
 - **Bubble keys**: `text`, `kind` (speech/thought/shout), `speaker`, optional
-  `x`/`y`/`to`/`max_chars`/`fs`/`uppercase` (`fs` and `uppercase` override
+  `at`/`x`/`y`/`to`/`max_chars`/`fs`/`uppercase` (`fs` and `uppercase` override
   the page-level `bubble_style`). Omit `y` and bubbles stack down by their
   measured height without overlapping; omit `x` and they centre (or sit above
-  their `speaker`). Every bubble is kept inside the panel — so a generated spec
-  over raster panels, which has no `speaker` to anchor to, can omit coordinates
-  entirely
+  their `speaker`). `at` hugs a corner or edge instead — `tl`, `t`, `tr`, `l`,
+  `c`, `r`, `bl`, `b`, `br` — and each column keeps its own top and bottom
+  stack, so `tl` + `tr` sit side by side and `bl` climbs up from the bottom.
+  `to: [x, y]` (panel fractions) aims a tail without a speaker. Every bubble is
+  kept inside the panel — so a generated spec over raster panels, which has no
+  `speaker` to anchor to, can omit coordinates entirely, or place each with `at`
+  to keep it off the faces
 - **Pixel keys**: `art` (library name) or `grid`+`palette`, plus `x`/`y`/`scale`
 
 ---
