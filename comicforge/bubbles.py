@@ -26,6 +26,31 @@ def _wrap(text: str, max_chars: int) -> list[str]:
     return lines or [""]
 
 
+def _box(text, max_chars, fs, pad):
+    """Wrap *text* and return (lines, line_height, body_width, body_height)."""
+    lines = _wrap(text, max_chars)
+    lh = fs * 1.25
+    longest = max((len(ln) for ln in lines), default=1)
+    w = max(longest * fs * 0.56 + 2 * pad, 60)
+    h = len(lines) * lh + 2 * pad
+    return lines, lh, w, h
+
+
+# how far each bubble kind's outline reaches beyond the text body box
+_OUTSET = {"thought": (12, 16), "shout": (16, 16)}
+
+
+def bubble_size(text, kind="speech", max_chars=22, fs=16, pad=14):
+    """Outer (width, height) a `bubble` call will occupy, tail excluded.
+
+    `thought` and `shout` draw outside the text body, so callers that stack
+    bubbles or keep them inside a panel need this, not just the body box.
+    """
+    _lines, _lh, w, h = _box(text, max_chars, fs, pad)
+    ow, oh = _OUTSET.get(kind, (0, 0))
+    return w + ow, h + oh
+
+
 def _text_block(lines, cx, top, fs, lh):
     spans = []
     for i, ln in enumerate(lines):
@@ -41,11 +66,7 @@ def _text_block(lines, cx, top, fs, lh):
 
 def bubble(text, bx, by, tail=None, kind="speech", max_chars=22,
            fs=16, pad=14):
-    lines = _wrap(text, max_chars)
-    lh = fs * 1.25
-    longest = max((len(ln) for ln in lines), default=1)
-    w = max(longest * fs * 0.56 + 2 * pad, 60)
-    h = len(lines) * lh + 2 * pad
+    lines, lh, w, h = _box(text, max_chars, fs, pad)
     x, y = bx - w / 2, by - h / 2
     txt = _text_block(lines, bx, y + pad, fs, lh)
 

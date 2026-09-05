@@ -7,9 +7,11 @@ default-posed actor with no error at all.  ``validate`` walks the whole spec
 without drawing anything, collecting *every* problem at once:
 
 - characters / scenes / pixel sprites that don't exist in the library
+- raster ``image:`` files that are missing, unreadable, or an unsupported type
 - poses an actor asks for that the character doesn't have
 - slot variants that don't exist for the chosen character+pose / scene
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
+- panel keys the renderer doesn't know (``imge:`` for ``image:``, say)
 - bubble ``speaker`` that names no actor in the panel, unknown bubble ``kind``
 - structural holes (no ``rows``, a row without ``panels``, a bubble with no text)
 
@@ -20,6 +22,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import raster
 from .library import Library
 from .pixelart import PixelLibrary
 from .render import _as_list, _build_libs, load_spec, spec_type
@@ -29,6 +32,9 @@ from .scene import SceneLibrary
 _ACTOR_RESERVED = {"char", "pose", "x", "y", "scale", "flip"}
 _SCENE_RESERVED = {"name"}
 _BUBBLE_KINDS = {"speech", "thought", "shout"}
+# every key `_render_panel` reads off a panel; anything else is a typo
+_PANEL_KEYS = {"width", "bg", "scene", "image", "actors", "pixel", "bubbles"}
+_IMAGE_KEYS = {"src", "fit"}
 
 
 def _check_actor(actor: dict, lib: Library, where: str, problems: list[str]) -> None:
@@ -91,6 +97,43 @@ def _check_scene(sc, scenes, where: str, problems: list[str]) -> None:
             )
 
 
+def _check_image(value, spec_dir, where: str, problems: list[str]) -> None:
+    try:
+        img = raster.normalize(value)
+    except ValueError as e:
+        problems.append(f"{where}: {e}")
+        return
+    for key in img:
+        if key not in _IMAGE_KEYS:
+            problems.append(
+                f"{where}: unknown image key '{key}' "
+                f"(ignored when rendering). Known: {sorted(_IMAGE_KEYS)}"
+            )
+    fit = img.get("fit", "cover")
+    if fit not in raster.FITS:
+        problems.append(
+            f"{where}: unknown image fit '{fit}'. Use one of {sorted(raster.FITS)}"
+        )
+    try:
+        path = raster.resolve(value, spec_dir)
+    except ValueError as e:
+        problems.append(f"{where}: {e}")
+        return
+    if not path.is_file():
+        problems.append(f"{where}: image file not found: {path}")
+        return
+    if path.suffix.lower() not in raster.MIME:
+        problems.append(
+            f"{where}: unsupported image type '{path.suffix}' for {path}. "
+            f"Supported: {sorted(raster.MIME)}"
+        )
+    try:
+        with path.open("rb") as fh:
+            fh.read(1)
+    except OSError as e:
+        problems.append(f"{where}: image file is unreadable: {path} ({e.strerror})")
+
+
 def _check_pixel(spec, pxlib, where: str, problems: list[str]) -> None:
     if "art" in spec:
         if pxlib is None:
@@ -125,10 +168,12 @@ def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
             )
 
 
-def _check_panel(panel, libs, where, problems) -> None:
+def _check_panel(panel, libs, where, problems, spec_dir=None) -> None:
     lib, scenes, pxlib = libs
     if panel.get("scene") is not None:
         _check_scene(panel["scene"], scenes, where, problems)
+    if panel.get("image") is not None:
+        _check_image(panel["image"], spec_dir, where, problems)
     for spec in _as_list(panel.get("pixel")):
         _check_pixel(spec, pxlib, where, problems)
     for actor in panel.get("actors", []):
@@ -166,13 +211,15 @@ def validate_spec(
         return [str(e)]
 
     if kind == "scene":  # standalone illustration, rendered with `scene`
-        if "scene" not in spec:
-            problems.append("scene spec has no top-level 'scene'")
+        if "scene" not in spec and "image" not in spec:
+            problems.append(
+                "scene spec has no background: set a top-level 'scene:' or 'image:'"
+            )
         if "rows" in spec:
             problems.append(
                 "scene spec must not have 'rows' (use a 'page' spec for a grid)"
             )
-        _check_panel(spec, libs, "scene", problems)
+        _check_panel(spec, libs, "scene", problems, spec_dir)
         return problems
 
     rows = spec.get("rows")
@@ -188,5 +235,12 @@ def validate_spec(
             problems.append(f"r{ri}: row has no 'panels'")
             continue
         for ci, panel in enumerate(panels):
-            _check_panel(panel, libs, f"r{ri}c{ci}", problems)
+            where = f"r{ri}c{ci}"
+            for key in panel:
+                if key not in _PANEL_KEYS:
+                    problems.append(
+                        f"{where}: unknown panel key '{key}' "
+                        f"(ignored when rendering). Known: {sorted(_PANEL_KEYS)}"
+                    )
+            _check_panel(panel, libs, where, problems, spec_dir)
     return problems

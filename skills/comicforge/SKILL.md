@@ -49,6 +49,11 @@ needs no Python (see [`reference.md`](reference.md)).
 4. Render:
    - comic page: `cmf render mystrip.yaml -o out.pdf`
    - single illustration: `cmf scene myscene.yaml -o out.png`
+   - one panel of a page (to iterate on a single panel without re-reading the
+     whole page): `cmf panel mystrip.yaml --row 0 --col 1 -o panel.png`
+     (0-indexed; defaults to row 0 col 0), or `--all` to write every panel into a
+     directory. This is the right way to inspect one panel — **do not** render the
+     full page and crop it with ImageMagick or other tooling.
    - one character on its own (to eyeball a pose/expression):
      `cmf character bara sit happy --library examples/pes/characters`
      — extra args are bare pose/variant names or `key=value` (`pose=walk`,
@@ -157,7 +162,19 @@ bubbles: [ ... ]
   y: 0.18           # OPTIONAL; omit and bubbles stack downward without overlap
   to: [0.4, 0.5]    # OPTIONAL tail target (panel fraction); else speaker's head
   max_chars: 22     # wrap width (optional)
-  fs: 16            # font size px (optional)
+  fs: 16            # font size px (optional; overrides bubble_style.font_size)
+  uppercase: true   # OPTIONAL: force this bubble's text to CAPS
+                    #           (overrides bubble_style.uppercase)
+```
+
+**Page-wide bubble defaults** — set `bubble_style` at the *top level* of a
+page or scene spec to style every bubble at once; per-bubble keys override:
+
+```yaml
+bubble_style:
+  uppercase: true   # render all bubble text in CAPS (classic comic lettering)
+  font_size: 16     # default font size px for all bubbles
+rows: [ ... ]
 ```
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.

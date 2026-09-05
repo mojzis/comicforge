@@ -74,6 +74,22 @@ def test_panel_scene_embeds_background(library, scenes):
     assert "#7a5230" in svg
 
 
+def test_bubble_style_central_and_override(library):
+    spec = {
+        "bubble_style": {"uppercase": True, "font_size": 20},
+        "rows": [{"panels": [{"bubbles": [
+            {"text": "hello there"},
+            {"text": "quiet one", "uppercase": False},
+            {"text": "small", "fs": 12},
+        ]}]}],
+    }
+    svg = build_svg(spec, library=library)
+    assert "HELLO THERE" in svg          # central uppercase applied
+    assert "quiet one" in svg            # per-bubble opts out of caps
+    assert 'font-size="20"' in svg       # central font size applied
+    assert 'font-size="12"' in svg       # per-bubble fs overrides central
+
+
 def test_build_scene_svg_sizes_to_scene(illustration_spec, library, scenes):
     svg = build_scene_svg(illustration_spec, library=library, scenes=scenes)
     assert svg.lstrip().startswith("<svg")

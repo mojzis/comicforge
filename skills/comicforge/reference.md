@@ -589,13 +589,15 @@ Do **not** auto-vectorize the result — hand/LLM-author the SVG using it as a g
 For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 
 - **Page-level keys**: `title`, `page` (A4/A5/letter/[w,h]), `px_per_mm`,
-  `margin_mm`, `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`
+  `margin_mm`, `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`,
+  `bubble_style` (page-wide bubble defaults: `uppercase`, `font_size`)
 - **Rows and panels**: `rows[].height` (relative weight), `rows[].panels[].width`
   (relative weight), panel keys: `bg`, `scene`, `actors`, `pixel`, `bubbles`
 - **Actor keys**: `char`, `pose` (optional; defaults to the character's default
   pose), per-slot variant keys (`face`, `arms`, etc.), `x`, `y`, `scale`, `flip`
 - **Bubble keys**: `text`, `kind` (speech/thought/shout), `speaker`, optional
-  `x`/`y`/`to`/`max_chars`/`fs`
+  `x`/`y`/`to`/`max_chars`/`fs`/`uppercase` (`fs` and `uppercase` override
+  the page-level `bubble_style`)
 - **Pixel keys**: `art` (library name) or `grid`+`palette`, plus `x`/`y`/`scale`
 
 ---

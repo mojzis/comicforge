@@ -14,6 +14,8 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
       - height: 1.0                  # relative weight (optional, default 1)
         panels:
           - bg: "#fbfaf6"            # optional panel background
+            image: "art/01.png"      # optional raster background, scaled to
+                                     # cover the panel; or {src:, fit:}
             actors:
               - char: tom
                 pose: walk           # optional; defaults to character's default
@@ -33,13 +35,17 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
                 x: 0.5  y: 0.2       # explicit centre (else derived from speaker)
                 to: [0.4, 0.5]       # explicit tail target (else the speaker's head)
 
-When several bubbles in a panel omit `y`, they stack downward from the top so
-they never overlap; omit `x` too and each sits above its own speaker.
+When several bubbles in a panel omit `y`, they stack downward from the top,
+each placed below the measured height of the one before it, so they never
+overlap however long the text is; omit `x` too and each sits above its own
+speaker (or in the middle, when there is no speaker — as on a raster panel).
+Every bubble is then nudged to stay inside its panel.
 
 PATH RESOLUTION
 Relative paths in the spec (``library:``, ``scenes_dir:``, ``pixel_dir:``) are
 resolved against the **spec file's directory** when the spec is loaded via a
-path.  CLI flags and absolute paths are used as-is.
+path.  CLI flags and absolute paths are used as-is.  A panel's ``image:`` path
+resolves the same way.
 """
 
 from __future__ import annotations
@@ -49,8 +55,8 @@ from pathlib import Path
 import cairosvg
 import yaml
 
-from . import pixelart
-from .bubbles import FONT, INK, bubble
+from . import pixelart, raster
+from .bubbles import FONT, INK, bubble, bubble_size
 from .library import Library
 from .pixelart import PixelLibrary
 from .scene import Scene, SceneLibrary
@@ -74,8 +80,8 @@ def spec_type(spec: dict) -> str:
     canvas (top-level ``scene``, rendered with ``comicforge scene``).
 
     An explicit ``type:`` key wins; otherwise the type is inferred from
-    structure (top-level ``scene`` and no ``rows`` == a scene), so specs written
-    before ``type:`` existed keep working.
+    structure (a top-level background — ``scene`` or ``image`` — and no ``rows``
+    == a scene), so specs written before ``type:`` existed keep working.
     """
     declared = spec.get("type")
     if declared is not None:
@@ -84,7 +90,8 @@ def spec_type(spec: dict) -> str:
                 f"unknown spec type {declared!r}; use one of {list(SPEC_TYPES)}"
             )
         return declared
-    return "scene" if "scene" in spec and "rows" not in spec else "page"
+    has_bg = "scene" in spec or "image" in spec
+    return "scene" if has_bg and "rows" not in spec else "page"
 
 
 def _resolve_dir(value: str | Path | None, spec_dir: Path | None) -> Path | None:
@@ -211,7 +218,12 @@ def build_svg(
     for _ri, _ci, panel, px, py, pw, ph in _panels(
         spec["rows"], grid_x, grid_y, grid_w, grid_h, gutter
     ):
-        parts.append(_render_panel(panel, px, py, pw, ph, lib, scn, pxlib))
+        parts.append(
+            _render_panel(
+                panel, px, py, pw, ph, lib, scn, pxlib,
+                bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+            )
+        )
 
     parts.append("</svg>")
     return "\n".join(parts)
@@ -252,13 +264,33 @@ def build_panel_svg(
             # `scale` only shrinks the rasterized output via width/height, leaving
             # the viewBox full-size so everything scales uniformly.
             ow, oh = pw * scale, ph * scale
-            body = _render_panel(panel, 0, 0, pw, ph, lib, scn, pxlib)
+            body = _render_panel(
+                panel, 0, 0, pw, ph, lib, scn, pxlib,
+                bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+            )
             return (
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{ow:.0f}" '
                 f'height="{oh:.0f}" viewBox="0 0 {pw:.1f} {ph:.1f}">\n'
                 f"{body}\n</svg>"
             )
     raise ValueError(f"no panel at row {row}, col {col}")
+
+
+def _scene_canvas(spec, scn, spec_dir) -> tuple[float, float]:
+    """Canvas size for a standalone scene spec, from its scene or its image."""
+    sc = spec.get("scene")
+    if sc is not None:
+        scene = scn.get(sc if isinstance(sc, str) else sc["name"])
+        scale = spec.get("scale", 4)
+        return scene.w * scale, scene.h * scale
+    img = spec.get("image")
+    if img is None:
+        raise ValueError(
+            "a scene spec needs a background: set 'scene:' or 'image:'."
+        )
+    iw, ih = raster.size(raster.resolve(img, spec_dir))
+    scale = spec.get("scale", 1)
+    return iw * scale, ih * scale
 
 
 def build_scene_svg(
@@ -271,9 +303,11 @@ def build_scene_svg(
     """Render a standalone illustration: one scene filling the whole canvas,
     with actors / pixel art / bubbles on top. No comic grid, no panel border.
 
-    Spec shape: ``scene`` (name or {name, <slot>: <variant>}), optional
-    ``scale`` (px per scene unit, default 4), plus ``actors`` / ``pixel`` /
-    ``bubbles`` like a single panel, and an optional ``title``.
+    The background is either a vector ``scene`` (name or
+    {name, <slot>: <variant>}) sized at ``scale`` px per scene unit (default 4),
+    or a raster ``image`` sized at ``scale`` output px per image px (default 1).
+    On top of it go ``actors`` / ``pixel`` / ``bubbles`` like a single panel,
+    plus an optional ``title`` and ``bubble_style`` (see ``_render_panel``).
     """
     if spec_type(spec) == "page":
         raise ValueError(
@@ -281,12 +315,11 @@ def build_scene_svg(
             "`comicforge render` instead of `scene`."
         )
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    sc = spec["scene"]
-    name = sc if isinstance(sc, str) else sc["name"]
-    scene = scn.get(name)
-    scale = spec.get("scale", 4)
-    w, h = scene.w * scale, scene.h * scale
-    body = _render_panel(spec, 0, 0, w, h, lib, scn, pxlib, border=False)
+    w, h = _scene_canvas(spec, scn, spec_dir)
+    body = _render_panel(
+        spec, 0, 0, w, h, lib, scn, pxlib, border=False,
+        bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+    )
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
         f'viewBox="0 0 {w} {h}">',
@@ -354,8 +387,25 @@ def render_character(
     )
 
 
+# Bubble auto-layout: how far from a panel edge a bubble is kept, and the gap
+# left between two bubbles that stack because neither declared a `y`.
+BUBBLE_INSET = 8.0
+BUBBLE_GAP = 10.0
+
+
+def _clamp(centre, size, origin, extent):
+    """Keep a bubble of *size* inside [origin, origin+extent], centring it when
+    it is too big to fit."""
+    if size + 2 * BUBBLE_INSET >= extent:
+        return origin + extent / 2
+    lo = origin + BUBBLE_INSET + size / 2
+    hi = origin + extent - BUBBLE_INSET - size / 2
+    return min(max(centre, lo), hi)
+
+
 def _render_panel(
-    panel, px, py, pw, ph, lib, scenes, pixel_library=None, border=True
+    panel, px, py, pw, ph, lib, scenes, pixel_library=None, border=True,
+    bubble_style=None, spec_dir=None,
 ) -> str:
     bg = panel.get("bg", "#fbfaf6")
     clip = f"clip{int(px)}_{int(py)}"
@@ -373,7 +423,12 @@ def _render_panel(
     def ay(fy):
         return py + fy * ph
 
-    # scene background (under everything)
+    # raster background (under everything; the clip path crops the overflow)
+    img = panel.get("image")
+    if img is not None:
+        out.append(raster.place(img, spec_dir, px, py, pw, ph))
+
+    # scene background (over a raster image, if both are given)
     sc = panel.get("scene")
     if sc is not None:
         if isinstance(sc, str):
@@ -414,7 +469,10 @@ def _render_panel(
     actors_by_char = {}
     for a in panel.get("actors", []):
         actors_by_char.setdefault(a["char"], a)
-    auto_y = 0  # how many bubbles we've auto-stacked from the top
+    style = bubble_style or {}
+    # bubbles that omit `y` stack down from here, each below the last one's real
+    # measured height, so they never overlap however long the text is
+    stack_y = py + BUBBLE_INSET
     for b in panel.get("bubbles", []):
         actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
         # tail target: explicit `to`, else the speaker's head
@@ -425,23 +483,29 @@ def _render_panel(
                 max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
             ]
         tail = (ax(to[0]), ay(to[1])) if to else None
-        # centre: explicit x/y, else above the speaker, stacked to avoid overlap
+        text = b["text"]
+        if b.get("uppercase", style.get("uppercase", False)):
+            text = text.upper()
+        kind = b.get("kind", "speech")
+        max_chars = b.get("max_chars", 22)
+        fs = b.get("fs", style.get("font_size", 16))
+        bw, bh = bubble_size(text, kind, max_chars, fs)
+        # centre: explicit x/y, else above the speaker / stacked from the top
         bx_f = b.get("x")
-        if bx_f is None:
-            bx_f = min(max(actor.get("x", 0.5), 0.24), 0.76) if actor else 0.5
+        if bx_f is not None:
+            bx = ax(bx_f)
+        else:
+            bx = ax(actor.get("x", 0.5)) if actor else ax(0.5)
         by_f = b.get("y")
-        if by_f is None:
-            by_f = min(0.15 + 0.17 * auto_y, 0.6)
-            auto_y += 1
+        if by_f is not None:
+            by = ay(by_f)
+        else:
+            by = stack_y + bh / 2
+            stack_y = by + bh / 2 + BUBBLE_GAP
+        bx, by = _clamp(bx, bw, px, pw), _clamp(by, bh, py, ph)
         out.append(
             bubble(
-                b["text"],
-                ax(bx_f),
-                ay(by_f),
-                tail=tail,
-                kind=b.get("kind", "speech"),
-                max_chars=b.get("max_chars", 22),
-                fs=b.get("fs", 16),
+                text, bx, by, tail=tail, kind=kind, max_chars=max_chars, fs=fs
             )
         )
 
