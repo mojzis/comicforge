@@ -26,6 +26,31 @@ def _wrap(text: str, max_chars: int) -> list[str]:
     return lines or [""]
 
 
+def _box(text, max_chars, fs, pad):
+    """Wrap *text* and return (lines, line_height, body_width, body_height)."""
+    lines = _wrap(text, max_chars)
+    lh = fs * 1.25
+    longest = max((len(ln) for ln in lines), default=1)
+    w = max(longest * fs * 0.56 + 2 * pad, 60)
+    h = len(lines) * lh + 2 * pad
+    return lines, lh, w, h
+
+
+# how far each bubble kind's outline reaches beyond the text body box
+_OUTSET = {"thought": (12, 16), "shout": (16, 16)}
+
+
+def bubble_size(text, kind="speech", max_chars=22, fs=16, pad=14):
+    """Outer (width, height) a `bubble` call will occupy, tail excluded.
+
+    `thought` and `shout` draw outside the text body, so callers that stack
+    bubbles or keep them inside a panel need this, not just the body box.
+    """
+    _lines, _lh, w, h = _box(text, max_chars, fs, pad)
+    ow, oh = _OUTSET.get(kind, (0, 0))
+    return w + ow, h + oh
+
+
 def _text_block(lines, cx, top, fs, lh):
     spans = []
     for i, ln in enumerate(lines):
@@ -39,13 +64,8 @@ def _text_block(lines, cx, top, fs, lh):
     )
 
 
-def bubble(text, bx, by, tail=None, kind="speech", max_chars=22,
-           fs=16, pad=14):
-    lines = _wrap(text, max_chars)
-    lh = fs * 1.25
-    longest = max((len(ln) for ln in lines), default=1)
-    w = max(longest * fs * 0.56 + 2 * pad, 60)
-    h = len(lines) * lh + 2 * pad
+def bubble(text, bx, by, tail=None, kind="speech", max_chars=22, fs=16, pad=14):
+    lines, lh, w, h = _box(text, max_chars, fs, pad)
     x, y = bx - w / 2, by - h / 2
     txt = _text_block(lines, bx, y + pad, fs, lh)
 
@@ -53,18 +73,22 @@ def bubble(text, bx, by, tail=None, kind="speech", max_chars=22,
         body = _burst(x, y, w, h)
     elif kind == "thought":
         rx, ry = w / 2 + 6, h / 2 + 8
-        body = (f'<ellipse cx="{bx:.1f}" cy="{by:.1f}" rx="{rx:.1f}" ry="{ry:.1f}" '
-                f'fill="#ffffff" stroke="{INK}" stroke-width="3"/>')
+        body = (
+            f'<ellipse cx="{bx:.1f}" cy="{by:.1f}" rx="{rx:.1f}" ry="{ry:.1f}" '
+            f'fill="#ffffff" stroke="{INK}" stroke-width="3"/>'
+        )
     else:
-        body = (f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
-                f'rx="{min(18, h/2):.1f}" fill="#ffffff" stroke="{INK}" '
-                f'stroke-width="3"/>')
+        body = (
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+            f'rx="{min(18, h / 2):.1f}" fill="#ffffff" stroke="{INK}" '
+            f'stroke-width="3"/>'
+        )
 
     tail_svg = ""
     if tail is not None:
         tail_svg = _tail(bx, by, w, h, tail, kind)
 
-    return f'<g>{body}{tail_svg}{txt}</g>'
+    return f"<g>{body}{tail_svg}{txt}</g>"
 
 
 def _tail(bx, by, w, h, tail, kind):
@@ -85,9 +109,11 @@ def _tail(bx, by, w, h, tail, kind):
         dots = ""
         for f in (0.45, 0.74, 1.0):
             r = 6 * (1 - f) + 2.5
-            dots += (f'<circle cx="{ex + ux * reach * f:.1f}" '
-                     f'cy="{ey + uy * reach * f:.1f}" r="{r:.1f}" '
-                     f'fill="#ffffff" stroke="{INK}" stroke-width="2.5"/>')
+            dots += (
+                f'<circle cx="{ex + ux * reach * f:.1f}" '
+                f'cy="{ey + uy * reach * f:.1f}" r="{r:.1f}" '
+                f'fill="#ffffff" stroke="{INK}" stroke-width="2.5"/>'
+            )
         return dots
     # narrow tapered tail for speech/shout
     perp = math.atan2(uy, ux) + math.pi / 2
@@ -106,17 +132,23 @@ def _tail(bx, by, w, h, tail, kind):
 def _cloud(x, y, w, h):
     # rounded body + scalloped top edge via overlapping circles
     rx = min(20, h / 2)
-    body = (f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
-            f'rx="{rx:.1f}" fill="#ffffff" stroke="{INK}" stroke-width="3"/>')
+    body = (
+        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+        f'rx="{rx:.1f}" fill="#ffffff" stroke="{INK}" stroke-width="3"/>'
+    )
     bumps = ""
     n = max(3, int(w // 34))
     for i in range(n):
         cx = x + (i + 0.5) * w / n
-        bumps += (f'<circle cx="{cx:.1f}" cy="{y:.1f}" r="13" '
-                  f'fill="#ffffff" stroke="{INK}" stroke-width="3"/>')
+        bumps += (
+            f'<circle cx="{cx:.1f}" cy="{y:.1f}" r="13" '
+            f'fill="#ffffff" stroke="{INK}" stroke-width="3"/>'
+        )
     # mask the inner stroke segments by redrawing body fill on top edge
-    cover = (f'<rect x="{x+3:.1f}" y="{y:.1f}" width="{w-6:.1f}" height="14" '
-             f'fill="#ffffff" stroke="none"/>')
+    cover = (
+        f'<rect x="{x + 3:.1f}" y="{y:.1f}" width="{w - 6:.1f}" height="14" '
+        f'fill="#ffffff" stroke="none"/>'
+    )
     return body + bumps + cover + body.replace('fill="#ffffff"', 'fill="none"')
 
 
@@ -129,5 +161,7 @@ def _burst(x, y, w, h):
         a = math.pi * i / n
         rr = 1.0 if i % 2 == 0 else 0.78
         pts.append(f"{cx + math.cos(a) * rx * rr:.1f},{cy + math.sin(a) * ry * rr:.1f}")
-    return (f'<polygon points="{" ".join(pts)}" fill="#ffffff" '
-            f'stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>')
+    return (
+        f'<polygon points="{" ".join(pts)}" fill="#ffffff" '
+        f'stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>'
+    )

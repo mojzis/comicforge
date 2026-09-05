@@ -435,10 +435,14 @@ renders a default-faced, default-posed actor with no error. `validate` flags:
 - poses an actor asks for that the character lacks
 - slot variants that don't exist for the chosen character+pose / scene
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
+- panel keys the renderer doesn't know — `imge:` for `image:`, say
+- raster `image:` files that are missing, unreadable, or of an unsupported type;
+  an `image:` with no `src`, an unknown image key, an unknown `fit`
 - bubble `speaker` naming no actor in the panel; unknown bubble `kind`
 - structural holes (a page with no `rows`, a row with no `panels`, a bubble with
-  no `text`); an unknown `type:`, or a `type:` that contradicts the structure
-  (a `scene` spec carrying `rows`)
+  no `text`, a `scene` spec with neither `scene:` nor `image:`); an unknown
+  `type:`, or a `type:` that contradicts the structure (a `scene` spec carrying
+  `rows`)
 
 Exits `0` when the spec is sound, `1` (with a bulleted problem list) otherwise —
 so it works in a pre-render check or CI.
@@ -589,13 +593,26 @@ Do **not** auto-vectorize the result — hand/LLM-author the SVG using it as a g
 For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 
 - **Page-level keys**: `title`, `page` (A4/A5/letter/[w,h]), `px_per_mm`,
-  `margin_mm`, `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`
+  `margin_mm`, `gutter_mm`, `library`, `scenes_dir`, `pixel_dir`,
+  `bubble_style` (page-wide bubble defaults: `uppercase`, `font_size`)
 - **Rows and panels**: `rows[].height` (relative weight), `rows[].panels[].width`
-  (relative weight), panel keys: `bg`, `scene`, `actors`, `pixel`, `bubbles`
+  (relative weight), panel keys: `bg`, `scene`, `image`, `actors`, `pixel`,
+  `bubbles` — `validate` flags any other panel key as a typo
+- **Image keys**: `image: path.png` or `image: {src:, fit:}` with
+  `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
+  (fit inside + letterbox). The path resolves against the spec file's dir and
+  the image is embedded as a base64 data URI, so SVG/PDF output stays
+  self-contained. A `type: scene` spec can use `image:` in place of `scene:`,
+  and takes its canvas size from the image
 - **Actor keys**: `char`, `pose` (optional; defaults to the character's default
   pose), per-slot variant keys (`face`, `arms`, etc.), `x`, `y`, `scale`, `flip`
 - **Bubble keys**: `text`, `kind` (speech/thought/shout), `speaker`, optional
-  `x`/`y`/`to`/`max_chars`/`fs`
+  `x`/`y`/`to`/`max_chars`/`fs`/`uppercase` (`fs` and `uppercase` override
+  the page-level `bubble_style`). Omit `y` and bubbles stack down by their
+  measured height without overlapping; omit `x` and they centre (or sit above
+  their `speaker`). Every bubble is kept inside the panel — so a generated spec
+  over raster panels, which has no `speaker` to anchor to, can omit coordinates
+  entirely
 - **Pixel keys**: `art` (library name) or `grid`+`palette`, plus `x`/`y`/`scale`
 
 ---

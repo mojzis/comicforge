@@ -323,9 +323,7 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
             ):
                 rich_print(f"wrote {o}")
         else:
-            out = args.out or _default_out(
-                f"{args.spec.stem}-r{args.row}c{args.col}"
-            )
+            out = args.out or _default_out(f"{args.spec.stem}-r{args.row}c{args.col}")
             render_panel(
                 args.spec,
                 out,
