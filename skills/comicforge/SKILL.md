@@ -42,10 +42,11 @@ needs no Python (see [`reference.md`](reference.md)).
    pixel_dir:  "../pixel"
    ```
 3. Validate before rendering: `cmf validate mystrip.yaml` — checks every actor,
-   scene, pixel sprite, slot variant, pose, and bubble speaker against the
-   libraries without drawing anything, and lists *all* problems at once. Unlike
-   `render`, it flags mis-spelled keys (e.g. `fcae:`) that render silently
-   ignores. Exits non-zero when anything is wrong. Works on page and `scene` specs.
+   scene, raster `image:`, pixel sprite, slot variant, pose, and bubble speaker
+   against the libraries without drawing anything, and lists *all* problems at
+   once. Unlike `render`, it flags mis-spelled keys (e.g. `fcae:`, `imge:`) that
+   render silently ignores. Exits non-zero when anything is wrong. Works on page
+   and `scene` specs.
 4. Render:
    - comic page: `cmf render mystrip.yaml -o out.pdf`
    - single illustration: `cmf scene myscene.yaml -o out.png`
@@ -89,6 +90,7 @@ rows:                             # page is a stack of rows…
       - width: 1.0                # relative panel width (default 1)
         bg: "#fbfaf6"             # optional flat panel background
         scene: dvur               # optional scene background (see below)
+        image: "art/01.png"       # optional raster background (see below)
         actors: [ ... ]           # characters (drawn back→front in list order)
         pixel:  [ ... ]           # pixel-art sprites (drawn behind actors)
         bubbles:[ ... ]           # speech/thought/shout (drawn on top)
@@ -128,22 +130,62 @@ Confirm scenes/slots with `comicforge scenes --scenes <project>/scenes`.
 Seeds in `examples/pes/`: `dvur` (farmyard, slot `weather: clear|rain`),
 `pokoj` (room, no slots). Both live in `examples/pes/scenes/`.
 
+### image (raster panel background)
+
+When the panel art is a finished bitmap — a generated or photographed image
+rather than a `scene:` built from SVG — point the panel at it with `image:`.
+Everything else works unchanged: bubbles, actors and pixel art all compose on
+top of it.
+
+```yaml
+image: "../refs/panels/01.png"          # path, relative to the *spec file*
+image: {src: "01.png", fit: contain}    # or the long form, to pick the fit
+```
+
+- `fit: cover` (the default) scales the image to fill the panel and
+  centre-crops the overflow — a 3:2 image in a 4:3 panel crops rather than
+  distorts, exactly like a `scene:` background.
+- `fit: contain` scales it to fit *inside* the panel; the leftover strips show
+  the panel's `bg:` colour.
+- `.png`, `.jpg`/`.jpeg`, `.gif` and `.webp` are supported.
+- The image is **embedded** as a base64 data URI, so an `.svg` or `.pdf` render
+  is one self-contained file that still works when moved. That also means the
+  output carries the full byte weight of every image on the page — expect large
+  files for a page of full-res panels.
+- `image:` and `scene:` can coexist; the scene draws over the image.
+
+A standalone illustration can be image-backed too — set `type: scene` with an
+`image:` and no `scene:`, and the canvas is sized from the image's own pixel
+dimensions times `scale:` (default `1`, i.e. one output px per image px).
+
+**Where bubbles land on a raster panel.** There are no actors to anchor to, so
+`speaker:` is meaningless — use `x`/`y`/`to` fractions, or leave them out. A
+bubble with no `y` is placed below the measured bottom of the bubble before it,
+starting near the panel top, so any number of bubbles of any length stack
+without overlapping. A bubble with no `x` is horizontally centred. Every
+bubble — explicit or automatic — is then nudged so it stays inside the panel
+(one wider or taller than the panel is centred instead). A generated spec can
+therefore emit dialogue in order and omit the coordinates entirely.
+
 ## Standalone illustration (no comic grid)
 
-Render one scene filling the whole canvas with actors/bubbles on top — good for
-covers and single panels. Render with `comicforge scene file.yaml -o out.png`.
+Render one background filling the whole canvas with actors/bubbles on top —
+good for covers and single panels. Render with
+`comicforge scene file.yaml -o out.png`.
 
 Set `type: scene` so the spec declares which command renders it: `render`
 rejects a scene spec (and `scene` rejects a page spec) with a clear message
 instead of a confusing crash, and `validate` checks the type matches the
 structure. `type:` is optional — when omitted it's inferred (a top-level
-`scene` with no `rows` == a scene) — but declare it on standalone illustrations.
+background — `scene` or `image` — with no `rows` == a scene) — but declare it
+on standalone illustrations.
 
 ```yaml
 title: "Optional"
 type: scene
-scene: {name: dvur, weather: clear}
-scale: 3                    # px per scene unit (canvas = scene viewbox × scale)
+scene: {name: dvur, weather: clear}   # …or `image: cover.png` instead
+scale: 3                    # px per scene unit (canvas = scene viewbox × scale);
+                            # with `image:` it's output px per image px, default 1
 library:    "../characters"
 scenes_dir: "../scenes"
 actors:  [ ... ]            # same actor grammar; x/y/scale are canvas fractions
@@ -159,7 +201,9 @@ bubbles: [ ... ]
   speaker: tom      # OPTIONAL: auto-place above this actor + aim the tail at
                     #           their head. Prefer this over manual x/y/to.
   x: 0.5            # OPTIONAL bubble centre (panel fraction); else from speaker
-  y: 0.18           # OPTIONAL; omit and bubbles stack downward without overlap
+  y: 0.18           # OPTIONAL; omit and bubbles stack downward by measured
+                    #           height, so they never overlap. All bubbles are
+                    #           kept inside the panel.
   to: [0.4, 0.5]    # OPTIONAL tail target (panel fraction); else speaker's head
   max_chars: 22     # wrap width (optional)
   fs: 16            # font size px (optional; overrides bubble_style.font_size)

@@ -220,8 +220,16 @@ def build_svg(
     ):
         parts.append(
             _render_panel(
-                panel, px, py, pw, ph, lib, scn, pxlib,
-                bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+                panel,
+                px,
+                py,
+                pw,
+                ph,
+                lib,
+                scn,
+                pxlib,
+                bubble_style=spec.get("bubble_style"),
+                spec_dir=spec_dir,
             )
         )
 
@@ -265,8 +273,16 @@ def build_panel_svg(
             # the viewBox full-size so everything scales uniformly.
             ow, oh = pw * scale, ph * scale
             body = _render_panel(
-                panel, 0, 0, pw, ph, lib, scn, pxlib,
-                bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+                panel,
+                0,
+                0,
+                pw,
+                ph,
+                lib,
+                scn,
+                pxlib,
+                bubble_style=spec.get("bubble_style"),
+                spec_dir=spec_dir,
             )
             return (
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{ow:.0f}" '
@@ -285,9 +301,7 @@ def _scene_canvas(spec, scn, spec_dir) -> tuple[float, float]:
         return scene.w * scale, scene.h * scale
     img = spec.get("image")
     if img is None:
-        raise ValueError(
-            "a scene spec needs a background: set 'scene:' or 'image:'."
-        )
+        raise ValueError("a scene spec needs a background: set 'scene:' or 'image:'.")
     iw, ih = raster.size(raster.resolve(img, spec_dir))
     scale = spec.get("scale", 1)
     return iw * scale, ih * scale
@@ -317,8 +331,17 @@ def build_scene_svg(
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
     w, h = _scene_canvas(spec, scn, spec_dir)
     body = _render_panel(
-        spec, 0, 0, w, h, lib, scn, pxlib, border=False,
-        bubble_style=spec.get("bubble_style"), spec_dir=spec_dir,
+        spec,
+        0,
+        0,
+        w,
+        h,
+        lib,
+        scn,
+        pxlib,
+        border=False,
+        bubble_style=spec.get("bubble_style"),
+        spec_dir=spec_dir,
     )
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
@@ -403,9 +426,73 @@ def _clamp(centre, size, origin, extent):
     return min(max(centre, lo), hi)
 
 
+def _render_bubbles(panel, px, py, pw, ph, bubble_style) -> list[str]:
+    """Draw a panel's bubbles on top of everything else.
+
+    Placement can be derived from a bubble's `speaker`; on a raster panel there
+    are no actors, so a bubble with no `x`/`y` is centred horizontally and
+    stacked below the measured bottom of the previous one.
+    """
+    actors_by_char = {}
+    for a in panel.get("actors", []):
+        actors_by_char.setdefault(a["char"], a)
+    style = bubble_style or {}
+
+    def ax(fx):  # panel fraction -> page px
+        return px + fx * pw
+
+    def ay(fy):
+        return py + fy * ph
+
+    out = []
+    stack_y = py + BUBBLE_INSET  # top of the next auto-placed bubble
+    for b in panel.get("bubbles", []):
+        actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
+        # tail target: explicit `to`, else the speaker's head
+        to = b.get("to")
+        if to is None and actor is not None:
+            to = [
+                actor.get("x", 0.5),
+                max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
+            ]
+        tail = (ax(to[0]), ay(to[1])) if to else None
+        text = b["text"]
+        if b.get("uppercase", style.get("uppercase", False)):
+            text = text.upper()
+        kind = b.get("kind", "speech")
+        max_chars = b.get("max_chars", 22)
+        fs = b.get("fs", style.get("font_size", 16))
+        bw, bh = bubble_size(text, kind, max_chars, fs)
+        # centre: explicit x/y, else above the speaker / stacked from the top
+        bx = (
+            ax(b["x"])
+            if b.get("x") is not None
+            else ax(actor["x"] if actor and "x" in actor else 0.5)
+        )
+        if b.get("y") is not None:
+            by = ay(b["y"])
+        else:
+            by = stack_y + bh / 2
+            stack_y = by + bh / 2 + BUBBLE_GAP
+        bx, by = _clamp(bx, bw, px, pw), _clamp(by, bh, py, ph)
+        out.append(
+            bubble(text, bx, by, tail=tail, kind=kind, max_chars=max_chars, fs=fs)
+        )
+    return out
+
+
 def _render_panel(
-    panel, px, py, pw, ph, lib, scenes, pixel_library=None, border=True,
-    bubble_style=None, spec_dir=None,
+    panel,
+    px,
+    py,
+    pw,
+    ph,
+    lib,
+    scenes,
+    pixel_library=None,
+    border=True,
+    bubble_style=None,
+    spec_dir=None,
 ) -> str:
     bg = panel.get("bg", "#fbfaf6")
     clip = f"clip{int(px)}_{int(py)}"
@@ -465,49 +552,7 @@ def _render_panel(
             )
         )
 
-    # bubbles (on top) — placement can be derived from `speaker`
-    actors_by_char = {}
-    for a in panel.get("actors", []):
-        actors_by_char.setdefault(a["char"], a)
-    style = bubble_style or {}
-    # bubbles that omit `y` stack down from here, each below the last one's real
-    # measured height, so they never overlap however long the text is
-    stack_y = py + BUBBLE_INSET
-    for b in panel.get("bubbles", []):
-        actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
-        # tail target: explicit `to`, else the speaker's head
-        to = b.get("to")
-        if to is None and actor is not None:
-            to = [
-                actor.get("x", 0.5),
-                max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
-            ]
-        tail = (ax(to[0]), ay(to[1])) if to else None
-        text = b["text"]
-        if b.get("uppercase", style.get("uppercase", False)):
-            text = text.upper()
-        kind = b.get("kind", "speech")
-        max_chars = b.get("max_chars", 22)
-        fs = b.get("fs", style.get("font_size", 16))
-        bw, bh = bubble_size(text, kind, max_chars, fs)
-        # centre: explicit x/y, else above the speaker / stacked from the top
-        bx_f = b.get("x")
-        if bx_f is not None:
-            bx = ax(bx_f)
-        else:
-            bx = ax(actor.get("x", 0.5)) if actor else ax(0.5)
-        by_f = b.get("y")
-        if by_f is not None:
-            by = ay(by_f)
-        else:
-            by = stack_y + bh / 2
-            stack_y = by + bh / 2 + BUBBLE_GAP
-        bx, by = _clamp(bx, bw, px, pw), _clamp(by, bh, py, ph)
-        out.append(
-            bubble(
-                text, bx, by, tail=tail, kind=kind, max_chars=max_chars, fs=fs
-            )
-        )
+    out.extend(_render_bubbles(panel, px, py, pw, ph, bubble_style))
 
     out.append("</g>")
     # crisp panel border on top of clipped content

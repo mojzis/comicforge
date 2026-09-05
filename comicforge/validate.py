@@ -37,6 +37,16 @@ _PANEL_KEYS = {"width", "bg", "scene", "image", "actors", "pixel", "bubbles"}
 _IMAGE_KEYS = {"src", "fit"}
 
 
+def _check_keys(keys, known: set[str], label: str, where: str, problems) -> None:
+    """Flag keys the renderer silently ignores — almost always a typo."""
+    problems.extend(
+        f"{where}: unknown {label} key '{key}' "
+        f"(ignored when rendering). Known: {sorted(known)}"
+        for key in keys
+        if key not in known
+    )
+
+
 def _check_actor(actor: dict, lib: Library, where: str, problems: list[str]) -> None:
     name = actor.get("char")
     if not name:
@@ -103,12 +113,7 @@ def _check_image(value, spec_dir, where: str, problems: list[str]) -> None:
     except ValueError as e:
         problems.append(f"{where}: {e}")
         return
-    for key in img:
-        if key not in _IMAGE_KEYS:
-            problems.append(
-                f"{where}: unknown image key '{key}' "
-                f"(ignored when rendering). Known: {sorted(_IMAGE_KEYS)}"
-            )
+    _check_keys(img, _IMAGE_KEYS, "image", where, problems)
     fit = img.get("fit", "cover")
     if fit not in raster.FITS:
         problems.append(
@@ -236,11 +241,6 @@ def validate_spec(
             continue
         for ci, panel in enumerate(panels):
             where = f"r{ri}c{ci}"
-            for key in panel:
-                if key not in _PANEL_KEYS:
-                    problems.append(
-                        f"{where}: unknown panel key '{key}' "
-                        f"(ignored when rendering). Known: {sorted(_PANEL_KEYS)}"
-                    )
+            _check_keys(panel, _PANEL_KEYS, "panel", where, problems)
             _check_panel(panel, libs, where, problems, spec_dir)
     return problems

@@ -108,9 +108,7 @@ def test_unknown_fit_raises(art, library):
 def test_image_path_resolves_against_the_spec_file(tmp_path, art):
     spec = tmp_path / "page.yaml"
     spec.write_text(
-        yaml.safe_dump(
-            {"library": str(PES / "characters"), **_page("art.png")}
-        ),
+        yaml.safe_dump({"library": str(PES / "characters"), **_page("art.png")}),
         encoding="utf-8",
     )
     out = tmp_path / "out.png"
