@@ -3,15 +3,29 @@
 Spec shape (all panel-relative coords are fractions 0..1 of the panel):
 
     title: "..."                     # optional caption strip at top
+    title_style: {font_size: 26, color: "#21304a", font: "..."}
     page: A4                         # A4 (default) or [w_mm, h_mm]
+    bg: "#ffffff"                    # paper colour
     px_per_mm: 4                     # render scale
     margin_mm: 12
     gutter_mm: 5
+    frame:                           # panel outline, page-wide (panel `frame:`
+      width: 3.5                     # overrides); width 0 = no outline
+      color: "#21304a"
+      radius: 10                     # corner radius, also clips the art
+    bubble_style:                    # page-wide bubble look, see bubbles.DEFAULT_STYLE
+      font_size: 16
+      pad: 14
+      stroke_width: 3
+      radius: 18
+      uppercase: false
     library: "../characters"   # path to character dir
     scenes_dir: "../scenes"    # path to scenes dir
     pixel_dir: "../pixel"      # path to pixel-art dir
     rows:
       - height: 1.0                  # relative weight (optional, default 1)
+                                     # or `height_mm: 60` for a fixed height;
+                                     # weighted rows share what fixed rows leave
         panels:
           - bg: "#fbfaf6"            # optional panel background
             image: "art/01.png"      # optional raster background, scaled to
@@ -32,6 +46,8 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
                 kind: speech         # speech | thought | shout
                 speaker: tom         # auto-place above this actor + aim the tail
                                      # at their head; overrides below are optional
+                at: tr               # corner/edge to hug: t/b/c x l/r/c (tl, tr,
+                                     # bl, br, t, b, l, r, c); overrides x/y
                 x: 0.5  y: 0.2       # explicit centre (else derived from speaker)
                 to: [0.4, 0.5]       # explicit tail target (else the speaker's head)
 
@@ -39,7 +55,10 @@ When several bubbles in a panel omit `y`, they stack downward from the top,
 each placed below the measured height of the one before it, so they never
 overlap however long the text is; omit `x` too and each sits above its own
 speaker (or in the middle, when there is no speaker — as on a raster panel).
-Every bubble is then nudged to stay inside its panel.
+`at:` picks a corner or edge instead; a bubble only stacks under (or, from the
+bottom, over) the earlier bubbles it would actually overlap, so `tl` and `tr`
+sit side by side when they fit and `bl` climbs up from the bottom. Every
+bubble is then nudged to stay inside its panel.
 
 PATH RESOLUTION
 Relative paths in the spec (``library:``, ``scenes_dir:``, ``pixel_dir:``) are
@@ -51,12 +70,14 @@ resolves the same way.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+from xml.sax.saxutils import escape
 
 import cairosvg
 import yaml
 
 from . import pixelart, raster
-from .bubbles import FONT, INK, bubble, bubble_size
+from .bubbles import FONT, INK, bubble, bubble_size, resolve_style
 from .library import Library
 from .pixelart import PixelLibrary
 from .scene import Scene, SceneLibrary
@@ -133,13 +154,19 @@ class _NullSceneLibrary:
         return {}
 
 
-def _panels(rows, x0, y0, W, H, gutter):
-    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph)."""
-    wsum = sum(r.get("height", 1) for r in rows)
-    avail_h = H - gutter * (len(rows) - 1)
+def _panels(rows, x0, y0, W, H, gutter, k=1.0):
+    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph).
+
+    A row with ``height_mm`` is that tall (times *k* px/mm); the other rows
+    share whatever height is left by their ``height`` weight. When every row
+    is fixed the remainder of the page stays blank.
+    """
+    fixed = {ri: r["height_mm"] * k for ri, r in enumerate(rows) if "height_mm" in r}
+    wsum = sum(r.get("height", 1) for ri, r in enumerate(rows) if ri not in fixed)
+    avail_h = H - gutter * (len(rows) - 1) - sum(fixed.values())
     cy = y0
     for ri, row in enumerate(rows):
-        ph = avail_h * row.get("height", 1) / wsum
+        ph = fixed[ri] if ri in fixed else avail_h * row.get("height", 1) / wsum
         cols = row["panels"]
         cw_sum = sum(c.get("width", 1) for c in cols)
         avail_w = W - gutter * (len(cols) - 1)
@@ -198,17 +225,18 @@ def build_svg(
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
         f'viewBox="0 0 {W} {H}">',
-        f'<rect width="{W}" height="{H}" fill="#ffffff"/>',
+        f'<rect width="{W}" height="{H}" fill="{spec.get("bg", "#ffffff")}"/>',
     ]
 
     top = margin
     title = spec.get("title")
     if title:
-        ts = 26
+        tst = _title_style(spec)
+        ts = tst["font_size"]
         parts.append(
             f'<text x="{W / 2}" y="{margin + ts}" text-anchor="middle" '
-            f'font-family="{FONT}" font-size="{ts}" font-weight="bold" '
-            f'fill="{INK}">{title}</text>'
+            f'font-family="{tst["font"]}" font-size="{ts}" font-weight="bold" '
+            f'fill="{tst["color"]}">{escape(title)}</text>'
         )
         top = margin + ts + 14
 
@@ -216,7 +244,7 @@ def build_svg(
     grid_w, grid_h = W - 2 * margin, H - top - margin
 
     for _ri, _ci, panel, px, py, pw, ph in _panels(
-        spec["rows"], grid_x, grid_y, grid_w, grid_h, gutter
+        spec["rows"], grid_x, grid_y, grid_w, grid_h, gutter, k
     ):
         parts.append(
             _render_panel(
@@ -229,12 +257,20 @@ def build_svg(
                 scn,
                 pxlib,
                 bubble_style=spec.get("bubble_style"),
+                frame=spec.get("frame"),
                 spec_dir=spec_dir,
             )
         )
 
     parts.append("</svg>")
     return "\n".join(parts)
+
+
+TITLE_STYLE = {"font_size": 26, "color": INK, "font": FONT}
+
+
+def _title_style(spec, font_size=TITLE_STYLE["font_size"]) -> dict:
+    return {**TITLE_STYLE, "font_size": font_size, **(spec.get("title_style") or {})}
 
 
 def _layout(spec):
@@ -246,9 +282,9 @@ def _layout(spec):
     W, H = w_mm * k, h_mm * k
     margin = spec.get("margin_mm", 12) * k
     gutter = spec.get("gutter_mm", 5) * k
-    top = margin + (26 + 14 if spec.get("title") else 0)
+    top = margin + (_title_style(spec)["font_size"] + 14 if spec.get("title") else 0)
     yield from _panels(
-        spec["rows"], margin, top, W - 2 * margin, H - top - margin, gutter
+        spec["rows"], margin, top, W - 2 * margin, H - top - margin, gutter, k
     )
 
 
@@ -282,6 +318,7 @@ def build_panel_svg(
                 scn,
                 pxlib,
                 bubble_style=spec.get("bubble_style"),
+                frame=spec.get("frame"),
                 spec_dir=spec_dir,
             )
             return (
@@ -350,11 +387,12 @@ def build_scene_svg(
     ]
     title = spec.get("title")
     if title:
-        ts = 22
+        tst = _title_style(spec, font_size=22)
+        ts = tst["font_size"]
         parts.append(
             f'<text x="{w / 2}" y="{ts + 8}" text-anchor="middle" '
-            f'font-family="{FONT}" font-size="{ts}" font-weight="bold" '
-            f'fill="{INK}">{title}</text>'
+            f'font-family="{tst["font"]}" font-size="{ts}" font-weight="bold" '
+            f'fill="{tst["color"]}">{escape(title)}</text>'
         )
     parts.append("</svg>")
     return "\n".join(parts)
@@ -410,6 +448,9 @@ def render_character(
     )
 
 
+# Panel outline defaults; a page's `frame:` (and a panel's) override any key.
+FRAME: dict[str, Any] = {"width": 3.5, "color": INK, "radius": 10}
+
 # Bubble auto-layout: how far from a panel edge a bubble is kept, and the gap
 # left between two bubbles that stack because neither declared a `y`.
 BUBBLE_INSET = 8.0
@@ -426,17 +467,67 @@ def _clamp(centre, size, origin, extent):
     return min(max(centre, lo), hi)
 
 
+# `at:` anchors — (column, edge). A column is l / c / r, an edge t / b, or c
+# for "vertically centred, no stacking".
+ANCHORS = {
+    "tl": ("l", "t"), "t": ("c", "t"), "tc": ("c", "t"), "tr": ("r", "t"),
+    "bl": ("l", "b"), "b": ("c", "b"), "bc": ("c", "b"), "br": ("r", "b"),
+    "l": ("l", "c"), "c": ("c", "c"), "r": ("r", "c"), "cl": ("l", "c"),
+    "cr": ("r", "c"),
+}  # fmt: skip
+
+
+def _anchor(at):
+    if at is None:
+        return "c", "t"
+    if at not in ANCHORS:
+        raise ValueError(f"unknown bubble anchor {at!r}; use one of {sorted(ANCHORS)}")
+    return ANCHORS[at]
+
+
+def _stack(edge, bx, bw, bh, placed, py, ph):
+    """Vertical centre for a bubble of width *bw* / height *bh* centred on
+    *bx*: `t` sits as high as it can, `b` as low as it can, moving past any
+    bubble already *placed* (list of (x0, y0, x1, y1) boxes) that it would
+    overlap; `c` sits in the middle of the panel."""
+    if edge == "c":
+        return py + ph / 2
+    x0, x1 = bx - bw / 2, bx + bw / 2
+    top = py + ph - BUBBLE_INSET - bh if edge == "b" else py + BUBBLE_INSET
+    moved = True
+    while moved:
+        moved = False
+        for bx0, by0, bx1, by1 in placed:
+            if bx0 < x1 and bx1 > x0 and by0 < top + bh and by1 > top:
+                top = by0 - BUBBLE_GAP - bh if edge == "b" else by1 + BUBBLE_GAP
+                moved = True
+    return top + bh / 2
+
+
+def _tail_target(b, actor):
+    """Tail target in panel fractions: explicit `to`, else the speaker's head."""
+    to = b.get("to")
+    if to is None and actor is not None:
+        to = [
+            actor.get("x", 0.5),
+            max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
+        ]
+    return to
+
+
 def _render_bubbles(panel, px, py, pw, ph, bubble_style) -> list[str]:
     """Draw a panel's bubbles on top of everything else.
 
     Placement can be derived from a bubble's `speaker`; on a raster panel there
     are no actors, so a bubble with no `x`/`y` is centred horizontally and
-    stacked below the measured bottom of the previous one.
+    stacked below the measured bottom of the previous one. `at:` moves a bubble
+    to a corner or edge instead; each column keeps its own top and bottom
+    stack so bubbles that share a corner never overlap.
     """
     actors_by_char = {}
     for a in panel.get("actors", []):
         actors_by_char.setdefault(a["char"], a)
-    style = bubble_style or {}
+    style = resolve_style(bubble_style)
 
     def ax(fx):  # panel fraction -> page px
         return px + fx * pw
@@ -445,38 +536,46 @@ def _render_bubbles(panel, px, py, pw, ph, bubble_style) -> list[str]:
         return py + fy * ph
 
     out = []
-    stack_y = py + BUBBLE_INSET  # top of the next auto-placed bubble
+    placed = []  # (x0, y0, x1, y1) of every bubble drawn so far, for stacking
     for b in panel.get("bubbles", []):
         actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
-        # tail target: explicit `to`, else the speaker's head
-        to = b.get("to")
-        if to is None and actor is not None:
-            to = [
-                actor.get("x", 0.5),
-                max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
-            ]
+        to = _tail_target(b, actor)
         tail = (ax(to[0]), ay(to[1])) if to else None
         text = b["text"]
-        if b.get("uppercase", style.get("uppercase", False)):
+        if b.get("uppercase", style["uppercase"]):
             text = text.upper()
         kind = b.get("kind", "speech")
         max_chars = b.get("max_chars", 22)
-        fs = b.get("fs", style.get("font_size", 16))
-        bw, bh = bubble_size(text, kind, max_chars, fs)
-        # centre: explicit x/y, else above the speaker / stacked from the top
-        bx = (
-            ax(b["x"])
-            if b.get("x") is not None
-            else ax(actor["x"] if actor and "x" in actor else 0.5)
-        )
+        fs = b.get("fs", style["font_size"])
+        bw, bh = bubble_size(text, kind, max_chars, fs, style=style)
+        col, edge = _anchor(b.get("at"))
+        # centre: explicit x/y, else the anchor column / above the speaker
+        if b.get("x") is not None:
+            bx = ax(b["x"])
+        elif col == "c":
+            bx = ax(actor["x"] if actor and "x" in actor else 0.5)
+        elif col == "l":
+            bx = px + BUBBLE_INSET + bw / 2
+        else:
+            bx = px + pw - BUBBLE_INSET - bw / 2
+        bx = _clamp(bx, bw, px, pw)
         if b.get("y") is not None:
             by = ay(b["y"])
         else:
-            by = stack_y + bh / 2
-            stack_y = by + bh / 2 + BUBBLE_GAP
-        bx, by = _clamp(bx, bw, px, pw), _clamp(by, bh, py, ph)
+            by = _stack(edge, bx, bw, bh, placed, py, ph)
+        by = _clamp(by, bh, py, ph)
+        placed.append((bx - bw / 2, by - bh / 2, bx + bw / 2, by + bh / 2))
         out.append(
-            bubble(text, bx, by, tail=tail, kind=kind, max_chars=max_chars, fs=fs)
+            bubble(
+                text,
+                bx,
+                by,
+                tail=tail,
+                kind=kind,
+                max_chars=max_chars,
+                fs=fs,
+                style=style,
+            )
         )
     return out
 
@@ -492,13 +591,15 @@ def _render_panel(
     pixel_library=None,
     border=True,
     bubble_style=None,
+    frame=None,
     spec_dir=None,
 ) -> str:
     bg = panel.get("bg", "#fbfaf6")
+    fr = {**FRAME, **(frame or {}), **(panel.get("frame") or {})}
     clip = f"clip{int(px)}_{int(py)}"
     out = [
         f'<clipPath id="{clip}"><rect x="{px:.1f}" y="{py:.1f}" '
-        f'width="{pw:.1f}" height="{ph:.1f}" rx="10"/></clipPath>',
+        f'width="{pw:.1f}" height="{ph:.1f}" rx="{fr["radius"]}"/></clipPath>',
         f'<g clip-path="url(#{clip})">',
         f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
         f'fill="{bg}"/>',
@@ -556,10 +657,11 @@ def _render_panel(
 
     out.append("</g>")
     # crisp panel border on top of clipped content
-    if border:
+    if border and fr["width"] > 0:
         out.append(
             f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
-            f'rx="10" fill="none" stroke="{INK}" stroke-width="3.5"/>'
+            f'rx="{fr["radius"]}" fill="none" stroke="{fr["color"]}" '
+            f'stroke-width="{fr["width"]}"/>'
         )
     return "\n".join(out)
 

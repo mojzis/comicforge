@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from comicforge.bubbles import bubble_size
 from comicforge.render import (
+    _layout,
     build_character_svg,
     build_scene_svg,
     build_svg,
@@ -139,3 +141,122 @@ def test_build_character_svg_flip(library):
     plain = build_character_svg("tom", {}, library=library)
     flipped = build_character_svg("tom", {}, library=library, flip=True)
     assert plain != flipped
+
+
+def test_bubble_style_full_look(library):
+    spec = {
+        "bubble_style": {
+            "pad": 6,
+            "stroke_width": 1.2,
+            "stroke": "#5a4e42",
+            "radius": 4,
+        },
+        "rows": [{"panels": [{"bubbles": [{"text": "hello"}]}]}],
+    }
+    svg = build_svg(spec, library=library)
+    assert 'stroke="#5a4e42" stroke-width="1.20"' in svg
+    assert 'rx="4.0"' in svg
+
+
+def test_bubble_at_anchors_stack_per_column(library):
+    spec = {
+        "page": [200, 200],
+        "px_per_mm": 1,
+        "margin_mm": 0,
+        "rows": [
+            {
+                "panels": [
+                    {
+                        "bubbles": [
+                            {"text": "a", "at": "tl"},
+                            {"text": "b", "at": "tr"},
+                            {"text": "c", "at": "bl"},
+                        ]
+                    }
+                ]
+            }
+        ],
+    }
+    svg = build_svg(spec, library=library)
+    rects = [
+        ln
+        for ln in svg.split("<rect")
+        if 'fill="#ffffff"' in ln and ln.startswith(" x=")
+    ]
+    xs = [float(r.split('x="')[1].split('"')[0]) for r in rects]
+    ys = [float(r.split('y="')[1].split('"')[0]) for r in rects]
+    w, h = bubble_size("a")
+    assert xs[0] == pytest.approx(8.0)  # tl hugs the left inset
+    assert xs[1] == pytest.approx(200 - 8 - w)  # tr hugs the right
+    assert ys[0] == ys[1] == pytest.approx(8.0)  # side by side, same top
+    assert ys[2] == pytest.approx(200 - 8 - h)  # bl climbs from the bottom
+
+
+def test_bubble_at_stacks_only_when_overlapping(library):
+    wide = "a" * 30  # too wide for tl and tr to share the top edge
+    spec = {
+        "page": [300, 200],
+        "px_per_mm": 1,
+        "margin_mm": 0,
+        "rows": [
+            {
+                "panels": [
+                    {
+                        "bubbles": [
+                            {"text": wide, "at": "tl", "max_chars": 30},
+                            {"text": "b", "at": "tr"},
+                        ]
+                    }
+                ]
+            }
+        ],
+    }
+    svg = build_svg(spec, library=library)
+    rects = [
+        ln
+        for ln in svg.split("<rect")
+        if 'fill="#ffffff"' in ln and ln.startswith(" x=")
+    ]
+    ys = [float(r.split('y="')[1].split('"')[0]) for r in rects]
+    _w, h = bubble_size(wide, max_chars=30)
+    assert ys[1] == pytest.approx(8 + h + 10)  # pushed under the wide one
+
+
+def test_bubble_at_unknown_raises(library):
+    spec = {"rows": [{"panels": [{"bubbles": [{"text": "a", "at": "nope"}]}]}]}
+    with pytest.raises(ValueError, match="anchor"):
+        build_svg(spec, library=library)
+
+
+def test_frame_style_page_and_panel(library):
+    spec = {
+        "frame": {"width": 1, "color": "#777777", "radius": 0},
+        "rows": [{"panels": [{}, {"frame": {"width": 0}}]}],
+    }
+    svg = build_svg(spec, library=library)
+    assert svg.count('stroke="#777777" stroke-width="1"') == 1  # second panel has none
+    assert 'rx="0"' in svg
+
+
+def test_row_height_mm_is_fixed(library):
+    spec = {
+        "page": [100, 100],
+        "px_per_mm": 2,
+        "margin_mm": 0,
+        "gutter_mm": 0,
+        "rows": [{"height_mm": 30, "panels": [{}]}, {"panels": [{}]}],
+    }
+    heights = [ph for *_, ph in _layout(spec)]
+    assert heights == [60, 140]
+
+
+def test_page_bg_and_title_style(library):
+    spec = {
+        "bg": "#fbf8f0",
+        "title": "A & B",
+        "title_style": {"font_size": 20, "color": "#333333"},
+        "rows": [{"panels": [{}]}],
+    }
+    svg = build_svg(spec, library=library)
+    assert 'fill="#fbf8f0"' in svg
+    assert 'font-size="20" font-weight="bold" fill="#333333">A &amp; B<' in svg

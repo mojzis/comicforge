@@ -13,6 +13,7 @@ without drawing anything, collecting *every* problem at once:
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
 - panel keys the renderer doesn't know (``imge:`` for ``image:``, say)
 - bubble ``speaker`` that names no actor in the panel, unknown bubble ``kind``
+  or ``at`` anchor
 - structural holes (no ``rows``, a row without ``panels``, a bubble with no text)
 
 It returns a list of human-readable problem strings (empty == the spec is sound).
@@ -25,7 +26,7 @@ from pathlib import Path
 from . import raster
 from .library import Library
 from .pixelart import PixelLibrary
-from .render import _as_list, _build_libs, load_spec, spec_type
+from .render import ANCHORS, _as_list, _build_libs, load_spec, spec_type
 from .scene import SceneLibrary
 
 # keys on an actor / scene dict that are positioning or identity, not slots
@@ -33,7 +34,7 @@ _ACTOR_RESERVED = {"char", "pose", "x", "y", "scale", "flip"}
 _SCENE_RESERVED = {"name"}
 _BUBBLE_KINDS = {"speech", "thought", "shout"}
 # every key `_render_panel` reads off a panel; anything else is a typo
-_PANEL_KEYS = {"width", "bg", "scene", "image", "actors", "pixel", "bubbles"}
+_PANEL_KEYS = {"width", "bg", "frame", "scene", "image", "actors", "pixel", "bubbles"}
 _IMAGE_KEYS = {"src", "fit"}
 
 
@@ -164,6 +165,11 @@ def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
         if kind not in _BUBBLE_KINDS:
             problems.append(
                 f"{where}: bubble kind '{kind}' unknown. Have: {sorted(_BUBBLE_KINDS)}"
+            )
+        at = b.get("at")
+        if at is not None and at not in ANCHORS:
+            problems.append(
+                f"{where}: bubble anchor '{at}' unknown. Have: {sorted(ANCHORS)}"
             )
         speaker = b.get("speaker")
         if speaker is not None and speaker not in speakers:

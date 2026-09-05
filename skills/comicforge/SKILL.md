@@ -75,20 +75,29 @@ Every position inside a panel is a **fraction 0..1 of that panel**:
 
 ```yaml
 title: "Optional page title"      # bold caption strip at the top
+title_style: {font_size: 26, color: "#21304a"}   # optional
 type: page                        # page (default) | scene — see below
 page: A4                          # A4 | A5 | letter | [w_mm, h_mm]
+bg: "#ffffff"                     # paper colour
 px_per_mm: 4                      # raster scale (vector PDF ignores it)
 margin_mm: 14
 gutter_mm: 6
+frame:                            # panel outline, page-wide; a panel's own
+  width: 3.5                      #   `frame:` overrides. width 0 = no line
+  color: "#21304a"
+  radius: 10                      #   corner radius (also clips the art)
 library:    "../characters"   # path to character dir
 scenes_dir: "../scenes"       # path to scenes dir (omit if no scenes used)
 pixel_dir:  "../pixel"        # path to pixel-art dir (omit if inline only)
 
 rows:                             # page is a stack of rows…
-  - height: 1.0                   # relative row height (default 1)
+  - height: 1.0                   # relative row height (default 1), or
+                                  #   height_mm: 60 for a fixed height —
+                                  #   weighted rows share what is left
     panels:                       # …each row is a left→right list of panels
       - width: 1.0                # relative panel width (default 1)
         bg: "#fbfaf6"             # optional flat panel background
+        frame: {width: 0}         # optional per-panel outline override
         scene: dvur               # optional scene background (see below)
         image: "art/01.png"       # optional raster background (see below)
         actors: [ ... ]           # characters (drawn back→front in list order)
@@ -200,6 +209,9 @@ bubbles: [ ... ]
   kind: speech      # speech | thought | shout
   speaker: tom      # OPTIONAL: auto-place above this actor + aim the tail at
                     #           their head. Prefer this over manual x/y/to.
+  at: tr            # OPTIONAL corner/edge to hug: tl t tr l c r bl b br.
+                    #           Each column (l/c/r) stacks its own top and
+                    #           bottom, so tl + tr sit side by side.
   x: 0.5            # OPTIONAL bubble centre (panel fraction); else from speaker
   y: 0.18           # OPTIONAL; omit and bubbles stack downward by measured
                     #           height, so they never overlap. All bubbles are
@@ -218,6 +230,10 @@ page or scene spec to style every bubble at once; per-bubble keys override:
 bubble_style:
   uppercase: true   # render all bubble text in CAPS (classic comic lettering)
   font_size: 16     # default font size px for all bubbles
+  pad: 14           # text inset from the outline
+  radius: 18        # speech-bubble corner radius
+  stroke: "#21304a" # outline colour;  stroke_width: 3;  fill: "#ffffff"
+  ink: "#21304a"    # text colour;  font: "DejaVu Sans, sans-serif"
 rows: [ ... ]
 ```
 
