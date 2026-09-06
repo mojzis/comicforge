@@ -1,0 +1,6 @@
+name: pip
+label: Pip
+viewbox: [200, 260]
+default: {face: neutral}
+slots:
+  face: [neutral, happy]

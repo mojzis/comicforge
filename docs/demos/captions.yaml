@@ -1,0 +1,18 @@
+# A caption is narration: a band under the art, inside the frame. The art box
+# shrinks to make room, so actor and bubble coordinates stay picture-relative.
+page: [170, 80]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+caption_style:
+  font_size: 11
+  align: left
+  max_chars: 42
+
+rows:
+  - panels:
+      - caption: "Later that afternoon, the yard went quiet."
+        actors: [{char: tom, face: neutral, x: 0.5, y: 0.66, scale: 0.7}]
+      - caption: {text: "Nobody had seen the chickens since lunch.", max_chars: 26}
+        actors: [{char: bara, pose: sit, x: 0.5, y: 0.62, scale: 0.55}]

@@ -82,6 +82,8 @@ A **data-only** ComicForge project: YAML specs + SVG / pixel art, no Python.
 Paths in a spec resolve relative to the spec file, so `library: ../characters`
 works from anywhere. See the skill for the full spec grammar, and add your own
 characters under `characters/` to start placing actors.
+
+Documentation: https://mojzis.github.io/comicforge/
 """
 
 _GITIGNORE = "output/\n"

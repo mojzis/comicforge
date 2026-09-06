@@ -1,0 +1,12 @@
+# Bára is a *posed* character: two bodies, one shared set of faces.
+page: [170, 70]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+
+rows:
+  - panels:
+      - {caption: "pose: sit",  actors: [{char: bara, pose: sit,  face: neutral, x: 0.5, y: 0.5, scale: 0.6}]}
+      - {caption: "pose: walk", actors: [{char: bara, pose: walk, face: happy,   x: 0.5, y: 0.5, scale: 0.6}]}
+      - {caption: "+ flip",     actors: [{char: bara, pose: walk, face: happy,   x: 0.5, y: 0.5, scale: 0.6, flip: true}]}

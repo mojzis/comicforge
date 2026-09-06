@@ -40,6 +40,9 @@ packages = ["comicforge"]
 "skills/comicforge" = "skills/comicforge"
 
 [dependency-groups]
+docs = [
+    "mkdocs-material>=9.5",
+]
 dev = [
     "ruff",
     "ty",

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 260">
+  <g stroke="#21304a" stroke-width="6" stroke-linecap="round">
+    <!-- legs -->
+    <path d="M85 200v40M115 200v40" fill="none"/>
+    <!-- body -->
+    <rect x="62" y="118" width="76" height="86" rx="26" fill="#6aa9e0"/>
+    <!-- arms -->
+    <path d="M64 140l-26 30M136 140l26 30" fill="none"/>
+    <!-- head -->
+    <circle cx="100" cy="74" r="46" fill="#f6d3ad"/>
+  </g>
+</svg>

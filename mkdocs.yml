@@ -1,0 +1,164 @@
+site_name: ComicForge
+site_description: >-
+  A tiny, scriptable comic-page engine — author comics as YAML,
+  render to SVG / PNG / PDF.
+site_url: https://mojzis.github.io/comicforge/
+repo_url: https://github.com/mojzis/comicforge
+repo_name: mojzis/comicforge
+edit_uri: edit/main/docs/
+copyright: MIT-licensed. Demo art lives in the repo, not in the engine.
+
+docs_dir: docs
+site_dir: site
+
+# --strict turns these into build failures, so a broken cross-reference or a
+# dead anchor can never ship.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+# Demo renders are produced at build time by the hook below, so every image on
+# the site comes out of the engine as it stands in the tree.
+hooks:
+  - docs/hooks/render_demos.py
+
+# The `demos/` dir holds YAML shown *and* rendered on the site; it is included
+# via snippets rather than published as pages of its own.
+exclude_docs: |
+  demos/
+
+theme:
+  name: material
+  language: en
+  favicon: assets/favicon.svg
+  logo: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Follow system theme
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mojzis/comicforge
+      name: ComicForge on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/comicforge/
+      name: ComicForge on PyPI
+  generator: false
+
+plugins:
+  - search
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      base_path: [docs, .]
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: install.md
+      - Your first comic: quickstart.md
+      - Starting a project: starting-a-project.md
+      - Core concepts: concepts.md
+  - Authoring a page:
+      - Pages, rows and panels: guide/pages.md
+      - Actors: guide/actors.md
+      - Bubbles: guide/bubbles.md
+      - Captions and frames: guide/captions-frames.md
+      - Scene backgrounds: guide/scenes.md
+      - Raster images: guide/images.md
+      - Pixel art: guide/pixel-art.md
+      - Standalone illustrations: guide/illustrations.md
+  - Making the art:
+      - Characters: art/characters.md
+      - Scenes: art/scenes.md
+      - Pixel sprites: art/pixel.md
+      - Reference images: art/inspire.md
+  - Reference:
+      - Spec reference: reference/spec.md
+      - CLI: reference/cli.md
+      - Python API: reference/python-api.md
+      - Troubleshooting: reference/troubleshooting.md
+  - Gallery: gallery.md
+  - With Claude: claude.md
+  - Contributing: contributing.md
+
+# A change to the engine or the demo project changes what the build hook draws,
+# so `mkdocs serve` should redraw when either moves.
+watch:
+  - comicforge
+  - examples

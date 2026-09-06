@@ -1,0 +1,15 @@
+# No x, no y: bubbles stack downward by their measured height, so however
+# long the lines get they never overlap — and they stay inside the panel.
+page: [110, 85]
+px_per_mm: 6
+margin_mm: 8
+library: "../../examples/pes/characters"
+bubble_style: {font_size: 13}
+
+rows:
+  - panels:
+      - bg: "#fdfaf3"
+        bubbles:
+          - {text: "First line.", kind: speech}
+          - {text: "Then a longer second line that has to wrap.", kind: speech, max_chars: 24}
+          - {text: "And a third.", kind: speech}

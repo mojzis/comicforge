@@ -4,6 +4,9 @@ This guide covers everything you need to author comics with ComicForge — for b
 humans and LLMs. The [SKILL.md](SKILL.md) file is the quick-reference contract;
 this document goes deeper on structure, paths, and how all the pieces fit together.
 
+The same material, with rendered examples beside every spec, is published at
+<https://mojzis.github.io/comicforge/>.
+
 ---
 
 ## Engine + self-contained projects

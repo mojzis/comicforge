@@ -1,0 +1,16 @@
+title: "Pip says hello"
+page: [180, 70]              # a custom [width_mm, height_mm]
+px_per_mm: 6
+margin_mm: 8
+gutter_mm: 5
+library:   "../characters"
+pixel_dir: "../pixel"
+
+rows:
+  - panels:
+      - actors:  [{char: pip, face: neutral, x: 0.5, y: 0.62, scale: 0.8}]
+        bubbles: [{text: "Hello?", kind: speech, speaker: pip}]
+
+      - actors:  [{char: pip, face: happy, x: 0.5, y: 0.62, scale: 0.8}]
+        bubbles: [{text: "Hello!", kind: shout, speaker: pip}]
+        pixel:   [{art: heart, x: 0.82, y: 0.3, scale: 0.2}]

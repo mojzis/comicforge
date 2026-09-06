@@ -1,0 +1,19 @@
+# Three bubble kinds. `speaker:` places the bubble above that actor and aims
+# the tail at their head — no coordinates needed.
+page: [180, 75]
+px_per_mm: 5
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+
+rows:
+  - panels:
+      - actors: [{char: tom, face: happy, arms: wave, x: 0.5, y: 0.72, scale: 0.72}]
+        bubbles:
+          - {text: "Ahoj!", kind: speech, speaker: tom}
+      - actors: [{char: tom, face: sad, x: 0.5, y: 0.72, scale: 0.72}]
+        bubbles:
+          - {text: "Kde je ta kost?", kind: thought, speaker: tom, max_chars: 12}
+      - actors: [{char: tom, face: angry, arms: hips, x: 0.5, y: 0.72, scale: 0.72}]
+        bubbles:
+          - {text: "Tady!", kind: shout, speaker: tom}

@@ -1,0 +1,21 @@
+# `at:` hugs a corner or edge — the nine anchors below. Each column (l / c / r)
+# keeps its own top and bottom stack, so `tl` and `tr` sit side by side.
+page: [120, 95]
+px_per_mm: 6
+margin_mm: 8
+library: "../../examples/pes/characters"
+bubble_style: {font_size: 13}
+
+rows:
+  - panels:
+      - bg: "#fdfaf3"
+        bubbles:
+          - {text: "tl", kind: speech, at: tl}
+          - {text: "t",  kind: speech, at: t}
+          - {text: "tr", kind: speech, at: tr}
+          - {text: "l",  kind: speech, at: l}
+          - {text: "c",  kind: speech, at: c}
+          - {text: "r",  kind: speech, at: r}
+          - {text: "bl", kind: speech, at: bl}
+          - {text: "b",  kind: speech, at: b}
+          - {text: "br", kind: speech, at: br}

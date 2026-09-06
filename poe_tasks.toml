@@ -23,6 +23,14 @@ help = "Fail-fast tests: no coverage, minimal output"
 cmd = "pytest"
 help = "Full test run with coverage report"
 
+[tasks.docs]
+cmd = "mkdocs serve"
+help = "Serve the documentation site with live reload"
+
+[tasks.docs-build]
+cmd = "mkdocs build --strict"
+help = "Build the docs site (fails on broken links or a demo that won't render)"
+
 [tasks.dead-code]
 cmd = "vulture comicforge"
 help = "Dead code detection"

@@ -1,0 +1,28 @@
+# Sprites from the project's pixel/ dir, or written inline in the spec.
+page: [130, 70]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library:   "../../examples/pes/characters"
+pixel_dir: "../../examples/pes/pixel"
+
+rows:
+  - panels:
+      - caption: "from pixel/"
+        pixel:
+          - {art: heart, x: 0.28, y: 0.42, scale: 0.42}
+          - {art: sun,   x: 0.72, y: 0.42, scale: 0.42}
+      - caption: "inline grid + palette"
+        pixel:
+          - grid:
+              - ".XXXXX."
+              - "XXXXXXX"
+              - "XoXXXoX"
+              - "XXXXXXX"
+              - "XXXXXXX"
+              - "XXXXXXX"
+              - "X.X.X.X"
+            palette: {X: "#4f6d7a", o: "#f7f3e8"}
+            x: 0.5
+            y: 0.42
+            scale: 0.5

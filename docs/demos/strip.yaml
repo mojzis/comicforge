@@ -1,0 +1,37 @@
+title: "Ztracená kostička"
+title_style: {font_size: 22, color: "#21304a"}
+page: [190, 95]              # a custom [width_mm, height_mm] — or A4 / A5 / letter
+px_per_mm: 5
+margin_mm: 8
+gutter_mm: 5
+library:    "../../examples/pes/characters"
+scenes_dir: "../../examples/pes/scenes"
+pixel_dir:  "../../examples/pes/pixel"
+frame: {width: 3, radius: 8}
+bubble_style: {font_size: 13, em: 0.95}
+
+rows:
+  - panels:
+      - scene: pokoj
+        caption: "Bára hledala celé odpoledne."
+        actors:
+          - {char: bara, pose: walk, face: neutral, x: 0.42, y: 0.68, scale: 0.48}
+        bubbles:
+          - {text: "Kde jenom je?", kind: thought, speaker: bara, max_chars: 12}
+
+      - scene: {name: dvur, weather: clear}
+        caption: "Tom ji našel u boudy."
+        actors:
+          - {char: tom,  face: happy, arms: point, x: 0.34, y: 0.64, scale: 0.76}
+          - {char: bara, pose: sit, face: happy,   x: 0.76, y: 0.70, scale: 0.38}
+        bubbles:
+          - {text: "Tady!", kind: speech, speaker: tom}
+
+      - caption: "Konec pátrání."
+        actors:
+          - {char: bara, pose: walk, face: happy, x: 0.5, y: 0.6, scale: 0.5}
+        pixel:
+          - {art: heart, x: 0.8, y: 0.28, scale: 0.2}
+          - {art: bone,  x: 0.2, y: 0.32, scale: 0.18}
+        bubbles:
+          - {text: "Haf!", kind: shout, speaker: bara}

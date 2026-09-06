@@ -1,0 +1,24 @@
+# A raster panel background. `fit: cover` (the default) fills the panel and
+# crops; `fit: contain` fits the whole image and shows `bg:` in the strips.
+page: [180, 78]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+bubble_style: {font_size: 12}
+
+rows:
+  - panels:
+      - caption: "fit: cover (default)"
+        image: "raster-art/backdrop.png"
+
+      - caption: "fit: contain"
+        bg: "#20293d"
+        image: {src: "raster-art/backdrop.png", fit: contain}
+
+      - caption: "…and compose on top"
+        image: "raster-art/backdrop.png"
+        actors:
+          - {char: tom, face: surprised, x: 0.45, y: 0.62, scale: 0.62}
+        bubbles:
+          - {text: "Zase prší.", kind: speech, at: tl, max_chars: 12}

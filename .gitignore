@@ -34,3 +34,12 @@ review.html
 
 # Source archive (redundant after flattening)
 *.zip
+
+# Docs site: `mkdocs build` output, and the demo renders the build hook draws
+# (every image on the site is regenerated from a spec — never checked in).
+site/
+docs/assets/renders/
+
+# …except the one raster the `image:` demo needs as *input*, which `*.png` above
+# would otherwise swallow.
+!docs/demos/raster-art/*.png
