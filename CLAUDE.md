@@ -120,3 +120,53 @@ broken cross-reference, a dead anchor, a missing snippet or a missing render.
 - Demo art is hand/LLM-authored crisp SVG, edited directly in `examples/pes/`
   (there is no procedural generator). Use `comicforge inspire` for *reference*
   images only — never auto-vectorize them; it breaks overlay/anchor registration.
+
+## Toolbox (aesop)
+
+The [aesop toolbox](https://mojzis.github.io/aesop/llms.txt) is wired in. Every
+tool documents itself: run `uv run <tool> guide` before guessing at flags
+(`madoqua`, `gerenuk`, `biston`, `zorilla`, `pycoati`, `tyf`).
+
+**On every commit** — `hooks/pre-commit` runs `madoqua`, which acts on the
+staged `.py` files only (a commit with no `.py` staged runs nothing, silently):
+
+- fix phase: `ruff check --fix`, `ruff format` (re-staged)
+- check phase, in parallel: `ruff check`, `ty check`, `biston scan --focus-args`
+  (clone pairs touching a staged file), `zorilla check` (test smells in the
+  staged test files), `gerenuk run -- -q -o addopts=` (only the tests the diff
+  can reach, whole suite when unsure; diffs the *working tree* against
+  `origin/main`, so unstaged edits count)
+
+Typical timing: `uv run madoqua stats` (log in `.git/hook-timings.jsonl`).
+Skip one check for one run: `MADOQUA_SKIP="ty check" git commit ...`.
+Known baseline: `tests/test_inspire.py` and `tests/test_scaffold.py` carry
+ZR004 assertion-roulette findings — the hook blocks the next commit that
+touches them until those tests are split. Config: `[tool.madoqua]` and
+`[tool.biston.scan]` in `pyproject.toml`.
+
+`poe check` / CI are unchanged and remain the whole-tree run.
+
+**On demand** (never in the hook):
+
+- symbols — use `uv run tyf` instead of grep for definitions and references:
+  `uv run tyf find <name>`, `uv run tyf show <name> -r`, `uv run tyf refs <name>`.
+  Stale results after big edits: `uv run tyf daemon stop` (next query restarts it).
+- `uv run gerenuk impacted-tests` — which tests the current diff reaches, and why.
+- `uv run gerenuk audit <file>` — symbols in a module nothing references.
+- `uv run pycoati . --format pretty` — periodic test-suite audit: ranks every
+  test by suspicion with a remediation ladder. Run before a test cleanup session.
+  Not a hook, not CI. Needs pytest-cov (installed) or coverage is silently null.
+- `uv run biston scan .` / `uv run zorilla check .` — whole-tree clone / test-smell scan.
+
+**Fresh clone:** `uv sync` (add `--group docs` / `--extra inspire` as needed),
+then `uv run madoqua install` once — `core.hooksPath` is local git config, the
+shim in `hooks/` is committed.
+
+**Refresh the toolbox:**
+
+```bash
+uv lock --refresh --upgrade-package madoqua --upgrade-package gerenuk --upgrade-package biston --upgrade-package zorilla --upgrade-package pycoati --upgrade-package ty-find && uv sync
+```
+
+(`--refresh` matters: without it uv may serve a cached index and miss a release
+published minutes ago.)

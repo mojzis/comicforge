@@ -52,6 +52,11 @@ dev = [
     "deptry",
     "biston>=0.5.0",
     "poethepoet",
+    "madoqua>=0.2.2",
+    "gerenuk>=0.3.1",
+    "zorilla>=0.2.1",
+    "pycoati>=0.2.7",
+    "ty-find>=0.5.0",
 ]
 
 [tool.ruff]
@@ -96,3 +101,21 @@ min_confidence = 80
 
 [tool.poe]
 include = "poe_tasks.toml"
+
+# --- aesop toolbox -----------------------------------------------------------
+# madoqua is the commit hook (hooks/pre-commit shim; `uv run madoqua install`
+# once per clone). Fix phase: ruff check --fix, ruff format. Check phase: ruff
+# check, ty check, plus the siblings below. See CLAUDE.md "Toolbox".
+[tool.madoqua]
+extend_check = [
+    # madoqua appends the staged .py files. biston reads them as --focus-args focus
+    # files (only clone pairs touching a staged file); zorilla lints exactly those.
+    { name = "biston",  cmd = "biston scan --focus-args", timeout_s = 60,  max_output_lines = 80 },
+    { name = "zorilla", cmd = "zorilla check",            timeout_s = 30,  max_output_lines = 80 },
+    # gerenuk scopes itself from the git diff, so no file list. `-o addopts=`
+    # drops the --cov from [tool.pytest.ini_options] in the hook (same as `poe test`).
+    { name = "gerenuk", cmd = "gerenuk run -- -q -o addopts=", pass_files = false, timeout_s = 120, max_output_lines = 120 },
+]
+
+[tool.biston.scan]
+exclude = ["tests/**", "**/conftest.py"]

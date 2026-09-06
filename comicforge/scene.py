@@ -1,4 +1,4 @@
-"""Load the scene library and compose a scene background.
+"""Load the scene library and compose a scene background (base + overlays).
 
 A scene is a directory mirroring a character:
     base.svg, <slot>-<variant>.svg, scene.yaml
