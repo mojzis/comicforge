@@ -1,0 +1,14 @@
+# A standalone illustration: one background filling the canvas, no panel grid.
+# Render it with `cmf scene`, not `cmf render`.
+type: scene
+scale: 2.4
+library:    "../../examples/pes/characters"
+scenes_dir: "../../examples/pes/scenes"
+scene: {name: dvur, weather: clear}
+
+actors:
+  - {char: tom,  face: happy, arms: wave, x: 0.36, y: 0.72, scale: 0.62}
+  - {char: bara, pose: sit, face: happy,  x: 0.62, y: 0.82, scale: 0.34}
+
+bubbles:
+  - {text: "Dobré ráno!", kind: speech, speaker: tom, max_chars: 14}

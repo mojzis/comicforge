@@ -1,0 +1,15 @@
+# Slots are independent: `arms` varies while `face` stays put.
+page: [200, 65]
+px_per_mm: 5
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+
+rows:
+  - panels:
+      - {caption: down,     actors: [{char: tom, arms: down,     face: happy, x: 0.5, y: 0.55, scale: 0.88}]}
+      - {caption: wave,     actors: [{char: tom, arms: wave,     face: happy, x: 0.5, y: 0.55, scale: 0.88}]}
+      - {caption: point,    actors: [{char: tom, arms: point,    face: happy, x: 0.5, y: 0.55, scale: 0.88}]}
+      - {caption: crossed,  actors: [{char: tom, arms: crossed,  face: happy, x: 0.5, y: 0.55, scale: 0.88}]}
+      - {caption: hips,     actors: [{char: tom, arms: hips,     face: happy, x: 0.5, y: 0.55, scale: 0.88}]}
+      - {caption: thumbsup, actors: [{char: tom, arms: thumbsup, face: happy, x: 0.5, y: 0.55, scale: 0.88}]}

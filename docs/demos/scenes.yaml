@@ -1,0 +1,13 @@
+# A scene is a reusable background, scaled to *cover* the panel it lands in.
+page: [180, 70]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library:    "../../examples/pes/characters"
+scenes_dir: "../../examples/pes/scenes"
+
+rows:
+  - panels:
+      - {caption: "dvur", scene: dvur}
+      - {caption: "dvur · weather: rain", scene: {name: dvur, weather: rain}}
+      - {caption: "pokoj", scene: pokoj}

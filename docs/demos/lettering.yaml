@@ -1,0 +1,23 @@
+# Page-wide bubble look. Per-bubble keys (fs, uppercase, max_chars) win.
+page: [170, 70]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+bubble_style:
+  uppercase: true
+  font_size: 14
+  radius: 6
+  stroke: "#b3402f"
+  stroke_width: 4
+  ink: "#b3402f"
+  fill: "#fff8ee"
+
+rows:
+  - panels:
+      - actors: [{char: tom, face: laugh, arms: thumbsup, x: 0.5, y: 0.66, scale: 0.5}]
+        bubbles:
+          - {text: "Page style", kind: speech, speaker: tom}
+      - actors: [{char: tom, face: wink, x: 0.5, y: 0.66, scale: 0.5}]
+        bubbles:
+          - {text: "per-bubble override", kind: speech, speaker: tom, uppercase: false, fs: 11}

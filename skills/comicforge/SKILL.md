@@ -17,7 +17,8 @@ description: >
 You write a **comic page as a YAML spec**; the engine renders it to SVG/PNG/PDF.
 This file is the authoring contract. For deeper explanations (path resolution,
 how to add characters/scenes, pixel-art format, Python API, full CLI reference)
-see [`reference.md`](reference.md) in this skill directory.
+see [`reference.md`](reference.md) in this skill directory, or the documentation
+site at <https://mojzis.github.io/comicforge/>.
 
 ## Loop
 

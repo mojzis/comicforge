@@ -1,0 +1,19 @@
+# `frame:` is page-wide; a panel's own `frame:` overrides it. width 0 = no line.
+page: [180, 70]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 5
+library: "../../examples/pes/characters"
+frame: {width: 3.5, color: "#21304a", radius: 10}
+
+rows:
+  - panels:
+      - caption: "page default"
+        actors: [{char: tom, face: happy, x: 0.5, y: 0.62, scale: 0.72}]
+      - caption: "width 0"
+        frame: {width: 0}
+        bg: "#f2ede4"
+        actors: [{char: tom, face: happy, x: 0.5, y: 0.62, scale: 0.72}]
+      - caption: "heavy, round"
+        frame: {width: 8, radius: 26, color: "#b3402f"}
+        actors: [{char: tom, face: happy, x: 0.5, y: 0.62, scale: 0.72}]

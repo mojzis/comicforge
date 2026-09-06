@@ -1,0 +1,17 @@
+# x and y are fractions of the panel: (0,0) top-left, (1,1) bottom-right.
+page: [120, 90]
+px_per_mm: 6
+margin_mm: 8
+library:   "../../examples/pes/characters"
+pixel_dir: "../../examples/pes/pixel"
+
+rows:
+  - panels:
+      - bg: "#fdfaf3"
+        caption: {text: "x → left to right · y ↓ top to bottom", max_chars: 60}
+        pixel:
+          - {art: star, x: 0.1, y: 0.1, scale: 0.14}   # top-left
+          - {art: star, x: 0.9, y: 0.1, scale: 0.14}   # top-right
+          - {art: heart, x: 0.5, y: 0.5, scale: 0.18}  # centre
+          - {art: star, x: 0.1, y: 0.9, scale: 0.14}   # bottom-left
+          - {art: star, x: 0.9, y: 0.9, scale: 0.14}   # bottom-right

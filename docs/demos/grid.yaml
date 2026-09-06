@@ -1,0 +1,24 @@
+# Rows stack down the page; panels run left to right inside a row.
+# `height` and `width` are relative weights, not units.
+page: [180, 120]
+px_per_mm: 5
+margin_mm: 8
+gutter_mm: 5
+library: "../../examples/pes/characters"
+
+rows:
+  - height: 2                       # this row gets 2/3 of the usable height
+    panels:
+      - width: 2                    # …and 2/3 of the row's width
+        bg: "#fdf6e3"
+        caption: "row 0 · col 0 — width 2"
+      - bg: "#eef4fb"
+        caption: "row 0 · col 1"
+  - height: 1                       # …the remaining 1/3
+    panels:
+      - bg: "#f6f0fb"
+        caption: "row 1 · col 0"
+      - bg: "#f0f8f2"
+        caption: "row 1 · col 1"
+      - bg: "#fbeff0"
+        caption: "row 1 · col 2"

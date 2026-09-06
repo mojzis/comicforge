@@ -21,6 +21,7 @@ comicforge/              The engine — pure code, no bundled art.
 examples/pes/            A self-contained demo project (characters, scenes, pixel, pages).
                          Develop against the engine the same way a downstream project would.
 skills/comicforge/       The portable authoring skill (SKILL.md + reference.md).
+docs/                    The documentation site (MkDocs Material) — see below.
 tests/                   pytest suite.
 ```
 
@@ -82,6 +83,29 @@ cmf scene  examples/pes/pages/dvur-scene.yaml -o dvur.png
 cmf panel  examples/pes/pages/slepice.yaml -o panels/ --all
 ```
 
+## Docs site
+
+`docs/` is a MkDocs Material site published to GitHub Pages by
+`.github/workflows/docs.yml`.
+
+```bash
+uv sync --group docs
+poe docs          # serve with live reload
+poe docs-build    # mkdocs build --strict — what CI runs
+```
+
+**Every image on the site is rendered at build time** by
+`docs/hooks/render_demos.py`, from a spec in `docs/demos/` or from
+`examples/pes/`. Nothing is a checked-in screenshot, so a renderer change that
+breaks a demo breaks the docs build. To add an illustrated example: write
+`docs/demos/<name>.yaml` (small custom `page:`, `library:` pointing at
+`../../examples/pes/characters`), `cmf validate` it, then reference
+`assets/renders/<name>.png` and include the spec with a `pymdownx.snippets`
+include — see `docs/guide/bubbles.md` for the pattern.
+
+`--strict` plus the `validation:` block in `mkdocs.yml` fails the build on a
+broken cross-reference, a dead anchor, a missing snippet or a missing render.
+
 ## Conventions / invariants
 
 - **Content-free engine:** never hardcode an asset name, path, or default project
@@ -91,7 +115,8 @@ cmf panel  examples/pes/pages/slepice.yaml -o panels/ --all
 - The CLI subcommands (`render`/`scene`/`panel`/`characters`/`scenes`) are the
   stable surface; `characters`/`scenes` emit JSON manifests other tools depend on.
 - When you change the spec grammar or CLI, update the authoring skill in
-  `skills/comicforge/` (both `SKILL.md` and `reference.md`) in the same change.
+  `skills/comicforge/` (both `SKILL.md` and `reference.md`) **and** the affected
+  pages under `docs/` in the same change.
 - Demo art is hand/LLM-authored crisp SVG, edited directly in `examples/pes/`
   (there is no procedural generator). Use `comicforge inspire` for *reference*
   images only — never auto-vectorize them; it breaks overlay/anchor registration.

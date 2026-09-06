@@ -1,0 +1,18 @@
+# Every variant of Tom's `face` slot. One actor per panel, captioned.
+page: [200, 120]
+px_per_mm: 5
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+
+rows:
+  - panels:
+      - {caption: neutral,   actors: [{char: tom, face: neutral,   x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: happy,     actors: [{char: tom, face: happy,     x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: surprised, actors: [{char: tom, face: surprised, x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: sad,       actors: [{char: tom, face: sad,       x: 0.5, y: 0.55, scale: 0.86}]}
+  - panels:
+      - {caption: angry,     actors: [{char: tom, face: angry,     x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: laugh,     actors: [{char: tom, face: laugh,     x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: wink,      actors: [{char: tom, face: wink,      x: 0.5, y: 0.55, scale: 0.86}]}
+      - {caption: "(default)", actors: [{char: tom, x: 0.5, y: 0.55, scale: 0.86}]}

@@ -1,11 +1,17 @@
 # ComicForge
 
+**📖 Documentation: <https://mojzis.github.io/comicforge/>**
+
 A tiny, scriptable comic-page engine. Characters are a **base SVG + stackable
 variant overlays** (faces, arms, …); a comic page is a **declarative YAML spec**;
 output is **SVG / PNG / PDF**. Built so an LLM (or you) can author pages as plain
-text — see the authoring skill [`skills/comicforge/SKILL.md`](skills/comicforge/SKILL.md)
-for the full authoring contract and [`skills/comicforge/reference.md`](skills/comicforge/reference.md)
-for a deeper reference. Working **on the engine** instead? See [`CLAUDE.md`](CLAUDE.md).
+text.
+
+- [Your first comic](https://mojzis.github.io/comicforge/quickstart/) — a project, a character, a strip
+- [Spec reference](https://mojzis.github.io/comicforge/reference/spec/) · [CLI reference](https://mojzis.github.io/comicforge/reference/cli/) · [Gallery](https://mojzis.github.io/comicforge/gallery/)
+- [`skills/comicforge/SKILL.md`](skills/comicforge/SKILL.md) — the authoring contract an LLM reads
+- Working **on the engine**? See [`CLAUDE.md`](CLAUDE.md) and
+  [Contributing](https://mojzis.github.io/comicforge/contributing/).
 
 ## Start a project
 
@@ -19,13 +25,17 @@ cmf init my-comic                  # scaffold characters/ scenes/ pixel/ pages/ 
 cd my-comic && cmf render pages/hello.yaml
 ```
 
-See [`docs/starting-a-project.md`](docs/starting-a-project.md) for the data-only
-setup, version pinning, and when to make it a real Python project.
+See [Starting a project](https://mojzis.github.io/comicforge/starting-a-project/)
+for the data-only setup, version pinning, and when to make it a real Python
+project.
 
 ## Working on the engine
 
 ```bash
 uv sync                            # create .venv and install deps
+uv run poe test                    # the tight loop
+uv run poe check                   # everything, before opening a PR
+uv run poe docs                    # serve the documentation site locally
 ```
 
 ## Use
@@ -101,8 +111,10 @@ pixel_dir:  "../pixel"        # pixel-art sprites
 CLI flags (`--library`, `--scenes`, `--pixel-dir`) override spec keys and are
 treated as relative to the current working directory.
 
-See [`skills/comicforge/reference.md`](skills/comicforge/reference.md) for the full path
-resolution rule, how to add characters/scenes/sprites, and the complete CLI reference.
+The [documentation site](https://mojzis.github.io/comicforge/) covers the full
+path-resolution rule, how to add characters / scenes / sprites, and the complete
+CLI and spec references — every picture on it is rendered from a spec at build
+time.
 
 ## Design choices
 

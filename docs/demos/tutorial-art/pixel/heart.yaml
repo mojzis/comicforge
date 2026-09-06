@@ -1,0 +1,10 @@
+# A starter pixel-art sprite. Reference it from a spec as {art: heart, ...}.
+palette:
+  r: "#e8554d"
+grid:
+  - ".rr.rr."
+  - "rrrrrrr"
+  - "rrrrrrr"
+  - ".rrrrr."
+  - "..rrr.."
+  - "...r..."
