@@ -76,7 +76,8 @@ def load_items(path: Path) -> list[Item]:
     Each entry needs an id (``id`` / ``name``) and a description
     (``prompt`` / ``description`` / ``desc``).
     """
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    data = yaml.safe_load(text)
     raw = data.get("items", []) if isinstance(data, dict) else data
     if not isinstance(raw, list):
         # malformed config, not a type bug -> ValueError is the right contract
