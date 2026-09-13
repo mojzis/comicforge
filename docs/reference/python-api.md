@@ -177,6 +177,23 @@ layout = bubble_layout("pages/strip.yaml", row=0, col=1)
 `comicforge.render.panel_bubble_layout(panel, width, height, bubble_style)`
 does the same for a bare panel dict and an art-box size you already know.
 
+## Panel layout
+
+### `panel_layout(spec, spec_dir=None, on_page=False, ext=".png")`
+
+Where every panel of a page sits, in page px, without rendering — to place the
+panel renders again as the page does. The JSON `cmf panel --layout` prints and
+`--all` writes as `layout.json`; see [`panel`](cli.md#panel) for the shape.
+`image` is the area a panel render covers: the panel `box`, or with `on_page`
+the box plus half a gutter. `file` is the name `--all` gives it, with `ext`.
+
+```python
+from comicforge import panel_layout
+
+for p in panel_layout("pages/strip.yaml", on_page=True)["panels"]:
+    print(p["file"], p["image"])
+```
+
 ## The manifests
 
 ```python

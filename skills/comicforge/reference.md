@@ -485,6 +485,13 @@ cmf panel <spec.yaml> [-o <output>]   # default: output/<spec>-r<R>c<C>-<ts>.png
   [--all]                   # render every panel into a directory
                             # (default: output/<spec>-panels-<ts>/)
   [--scale 0.5]             # size vs full-page (default 0.5 = low res)
+  [--on-page]               # crop panel + half a gutter out of the page render,
+                            # so frame/corners look exactly as on the page
+  [--layout]                # print each panel's page position as JSON, no render
+                            # ({width, height, panels: [{row, col, file,
+                            #   box: {x,y,w,h}, image: {x,y,w,h}}]}, page px;
+                            #  image = what the render covers, honours --on-page);
+                            # --all also writes it as layout.json
   [--library <dir>]
   [--scenes  <dir>]
   [--pixel-dir <dir>]

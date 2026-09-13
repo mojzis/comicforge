@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import struct
 import zlib
 from pathlib import Path
@@ -16,6 +17,8 @@ from comicforge.render import (
     build_scene_svg,
     build_svg,
     page_squeeze,
+    panel_layout,
+    render_all_panels,
     render_scene,
     render_spec,
 )
@@ -136,6 +139,44 @@ def test_actors_and_pixel_compose_over_an_image(art, library, pixel):
     svg = build_svg(spec, library=library, pixel_library=pixel)
     assert "data:image/png;base64," in svg
     assert svg.index("<image") < svg.index("ahoj")  # image is underneath
+
+
+def test_on_page_panel_is_a_window_onto_the_page(art, library):
+    spec = _page(str(art))
+    page = build_svg(spec, library=library)
+    svg = build_panel_svg(spec, 0, 0, library=library, scale=1.0, on_page=True)
+    root, body = svg.split("\n", 1)
+    assert body == page.split("\n", 1)[1]
+    _, _, _, px, py, pw, ph = next(_layout(spec))
+    pad = spec.get("gutter_mm", 5) * spec.get("px_per_mm", 4) / 2
+    x0, y0 = px - pad, py - pad
+    assert f'viewBox="{x0:.1f} {y0:.1f} {pw + 2 * pad:.1f} {ph + 2 * pad:.1f}"' in root
+
+
+def test_panel_layout_boxes_match_the_page_layout():
+    spec = PES / "pages" / "slepice.yaml"
+    manifest = panel_layout(spec)
+    page = yaml.safe_load(spec.read_text(encoding="utf-8"))
+    boxes = [(round(px, 1), round(py, 1)) for *_, px, py, _pw, _ph in _layout(page)]
+    assert [(p["box"]["x"], p["box"]["y"]) for p in manifest["panels"]] == boxes
+
+
+def test_panel_layout_image_is_the_box_unless_on_page():
+    spec = PES / "pages" / "slepice.yaml"
+    assert all(p["image"] == p["box"] for p in panel_layout(spec)["panels"])
+
+
+def test_panel_layout_on_page_image_is_the_render_window(art, library):
+    spec = _page(str(art))
+    svg = build_panel_svg(spec, 0, 0, library=library, on_page=True)
+    img = panel_layout(spec, on_page=True)["panels"][0]["image"]
+    assert f'viewBox="{img["x"]} {img["y"]} {img["w"]} {img["h"]}"' in svg
+
+
+def test_render_all_panels_writes_layout_json(art, library, tmp_path):
+    render_all_panels(_page(str(art)), tmp_path, library=library, ext=".svg")
+    written = json.loads((tmp_path / "layout.json").read_text(encoding="utf-8"))
+    assert written["panels"][0]["file"] == "panel_r0c0.svg"
 
 
 def test_single_panel_render_keeps_the_image(art, library):

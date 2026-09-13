@@ -23,6 +23,7 @@ from rich import print as rich_print
 from .library import Library
 from .pixelart import PixelLibrary
 from .render import (
+    panel_layout,
     render_all_panels,
     render_character,
     render_panel,
@@ -178,6 +179,19 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
         default=0.5,
         help="size vs full-page panel (default 0.5 = low res)",
     )
+    pn.add_argument(
+        "--on-page",
+        action="store_true",
+        dest="on_page",
+        help="crop the panel (plus half a gutter) out of the page render, "
+        "so it looks exactly as it does on the page",
+    )
+    pn.add_argument(
+        "--layout",
+        action="store_true",
+        help="print every panel's position on the page as JSON instead of "
+        "rendering (--all also writes it as layout.json)",
+    )
     pn.add_argument("--library", type=Path, default=None)
     pn.add_argument("--scenes", type=Path, default=None)
     pn.add_argument(
@@ -319,7 +333,15 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
         lib = Library(args.library) if args.library else None
         scenes = SceneLibrary(args.scenes) if args.scenes else None
         px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
-        if args.all:
+        if args.layout:
+            try:
+                manifest = panel_layout(args.spec, on_page=args.on_page)
+            except ValueError as e:
+                rich_print(f"{args.spec}: {e}")
+                return 1
+            json.dump(manifest, sys.stdout, indent=2, ensure_ascii=False)
+            sys.stdout.write("\n")
+        elif args.all:
             out = args.out or (OUTPUT_DIR / f"{args.spec.stem}-panels-{_stamp()}")
             for o in render_all_panels(
                 args.spec,
@@ -328,6 +350,7 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
                 scenes=scenes,
                 pixel_library=px,
                 scale=args.scale,
+                on_page=args.on_page,
             ):
                 rich_print(f"wrote {o}")
         else:
@@ -341,6 +364,7 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
                 scenes=scenes,
                 scale=args.scale,
                 pixel_library=px,
+                on_page=args.on_page,
             )
             rich_print(f"wrote {out}")
     elif args.cmd == "character":
