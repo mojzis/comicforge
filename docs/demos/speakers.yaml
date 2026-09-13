@@ -21,14 +21,14 @@ rows:
           - {text: "Slepice, domů!", speaker: door, max_chars: 14}
           - {text: "Ještě chvilku!", speaker: hen, max_chars: 14}
 
-      - caption: "tail_shape: line"
+      - caption: "tail: line"
         image: "raster-art/backdrop.png"
         speakers:
           sun: [0.84, 0.21]
           hen: [0.42, 0.78]
         bubbles:
-          - {text: "Prší, schovej se.", speaker: sun, max_chars: 12, tail_shape: line}
-          - {text: "Mně to nevadí.", speaker: hen, max_chars: 12, tail_shape: line}
+          - {text: "Prší, schovej se.", speaker: sun, max_chars: 12, tail: line}
+          - {text: "Mně to nevadí.", speaker: hen, max_chars: 12, tail: line}
 
   - height: auto
     panels:
@@ -44,4 +44,4 @@ rows:
         speakers:
           hen: [0.42, 0.78]
         bubbles:
-          - {text: "Kdy už přestane pršet?", kind: thought, speaker: hen, max_chars: 14, tail_shape: line}
+          - {text: "Kdy už přestane pršet?", kind: thought, speaker: hen, max_chars: 14, tail: line}

@@ -202,8 +202,8 @@ complaint. `validate` flags:
 - raster `image:` files that are missing, unreadable or of an unsupported type;
   an `image:` with no `src`; an unknown image key; an unknown `fit`
 - a bubble `speaker` naming neither an actor nor a `speakers:` point in the
-  panel; a malformed `speakers:` point; an unknown bubble `kind`, `tail_shape`
-  or `tail_from`
+  panel; a malformed `speakers:` point; an unknown bubble `kind`, `tail`
+  or `tail_from`, a `tail_bend` outside -1..1
 - structural holes — a page with no `rows`, a row with no `panels`, a bubble
   with no `text`, a scene spec with neither `scene:` nor `image:`
 - an unknown `type:`, or a `type:` that contradicts the structure (a `scene`

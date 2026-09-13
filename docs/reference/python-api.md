@@ -164,9 +164,12 @@ layout = bubble_layout("pages/strip.yaml", row=0, col=1)
     "auto": True,                            # placed in reading order
     "center": [0.2, 0.08], "box": [0.12, 0.02, 0.28, 0.14],  # x0, y0, x1, y1
     "tail": {"edge": "b", "shape": "wedge",
+             "bend": 0.0,                    # -1..1, the resolved bow
              "start": [0.21, 0.14],          # where it leaves the bubble
+             "control": [0.22, 0.21],        # the quadratic control point
              "tip": [0.24, 0.29],            # where the drawn tail ends
-             "target": [0.42, 0.78]}},       # what it aims at; None without a tail
+             "target": [0.42, 0.78]}},       # what it aims at; tail is None
+                                             # without a target or with `tail: none`
  ],
  "warnings": []}                             # as `cmf validate` words them
 ```

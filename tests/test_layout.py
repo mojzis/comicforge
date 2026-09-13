@@ -1,7 +1,7 @@
 import pytest
 
 from comicforge import bubble_layout
-from comicforge.bubbles import bubble, tail_from, tail_geometry
+from comicforge.bubbles import Tail, bubble, tail_from, tail_geometry, tail_look
 from comicforge.cli import main
 from comicforge.layout import layout_bubbles, speaker_points
 from comicforge.render import build_svg
@@ -141,14 +141,12 @@ def test_default_tail_geometry_is_unchanged():
 
 
 def test_line_tail_runs_to_the_gap_before_the_target():
-    geom = tail_geometry(
-        100, 100, 80, 40, (100, 300), {"tail_shape": "line", "tail_gap": 10}
-    )
+    geom = tail_geometry(100, 100, 80, 40, (100, 300), {"tail": "line", "tail_gap": 10})
     assert geom.tip == pytest.approx((100, 290))
 
 
 def test_line_tail_draws_a_halo_under_the_body():
-    svg = bubble("hi", 100, 100, tail=(100, 300), style={"tail_shape": "line"})
+    svg = bubble("hi", 100, 100, tail=(100, 300), style={"tail": "line"})
     halo, rest = svg.split("<rect", 1)
     assert 'stroke="#ffffff"' in halo
     assert 'stroke="#21304a"' in rest and "stroke-linecap" in rest
@@ -156,17 +154,100 @@ def test_line_tail_draws_a_halo_under_the_body():
 
 def test_thought_line_tail_is_a_trail_of_dots():
     svg = bubble(
-        "hmm", 100, 100, tail=(100, 300), kind="thought", style={"tail_shape": "line"}
+        "hmm", 100, 100, tail=(100, 300), kind="thought", style={"tail": "line"}
     )
     assert svg.count("<circle") > 10
 
 
-def test_per_bubble_tail_shape_overrides_page_style(library):
+def test_curve_tail_reaches_further_than_a_wedge():
+    wedge = tail_geometry(100, 100, 80, 40, (100, 300))
+    curve = tail_geometry(100, 100, 80, 40, (100, 300), {"tail": "curve"})
+    assert curve.tip[1] > wedge.tip[1]
+
+
+def test_positive_bend_bows_right_of_the_direction_of_travel():
+    geom = Tail("b", (0, 0), (0, 100), (0, 120), "curve", 1.0)
+    assert geom.control == pytest.approx((-50, 50))  # heading down: right is -x
+    assert geom.point(0) == (0, 0)
+    assert geom.point(1) == pytest.approx((0, 100))
+
+
+def test_wedge_ignores_bend():
+    geom = tail_geometry(100, 100, 80, 40, (100, 300), {"tail_bend": 1})
+    assert geom.bend == 0
+
+
+def test_curve_tail_is_outlined_under_the_body_and_filled_over_it():
+    svg = bubble(
+        "hi", 100, 100, tail=(100, 300), style={"tail": "curve", "tail_bend": 0.5}
+    )
+    under, rest = svg.split("<rect", 1)
+    assert " Q" in under and 'stroke-width="6.00"' in under
+    assert 'stroke="none"' in rest
+
+
+def test_thought_keeps_its_circles_on_a_curve():
+    svg = bubble(
+        "hmm", 100, 100, tail=(100, 300), kind="thought", style={"tail": "curve"}
+    )
+    assert svg.count("<circle") == 3
+
+
+def test_tail_none_draws_and_lays_out_no_tail():
+    panel = {
+        "speakers": {"ema": [0.7, 0.6]},
+        "bubbles": [{"text": "a", "speaker": "ema", "tail": "none"}],
+    }
+    [b] = bubble_layout(_page(panel))["bubbles"]
+    assert b["tail"] is None
+    assert "<path" not in bubble("a", 10, 10, tail=(50, 50), style={"tail": "none"})
+
+
+def _side(tail, point):
+    (sx, sy), (tx, ty) = tail["start"], tail["tip"]
+    return (tx - sx) * (point[1] - sy) - (ty - sy) * (point[0] - sx)
+
+
+def test_auto_bend_bows_tails_away_from_the_neighbouring_bubble():
+    panel = {
+        "speakers": {"ema": [0.45, 0.9], "jan": [0.55, 0.9]},
+        "bubbles": [
+            {"text": "a", "speaker": "ema", "at": "tl", "tail": "curve"},
+            {"text": "b", "speaker": "jan", "at": "tr", "tail": "line"},
+        ],
+    }
+    left, right = bubble_layout(_page(panel))["bubbles"]
+    for me, other in ((left, right), (right, left)):
+        assert (
+            _side(me["tail"], me["tail"]["control"])
+            * _side(me["tail"], other["center"])
+            < 0
+        )
+
+
+def test_explicit_bend_wins_over_auto():
     panel = {
         "speakers": {"ema": [0.5, 0.9]},
-        "bubbles": [{"text": "a", "speaker": "ema", "tail_shape": "wedge"}],
+        "bubbles": [{"text": "a", "speaker": "ema", "tail": "line", "tail_bend": -1}],
     }
-    svg = build_svg(_page(panel, bubble_style={"tail_shape": "line"}), library=library)
+    [b] = bubble_layout(_page(panel))["bubbles"]
+    assert b["tail"]["bend"] == -1
+
+
+@pytest.mark.parametrize(
+    "bad", [{"tail": "zigzag"}, {"tail_bend": 2}, {"tail_bend": "x"}]
+)
+def test_tail_look_rejects_nonsense(bad):
+    with pytest.raises(ValueError):
+        tail_look(bad)
+
+
+def test_per_bubble_tail_overrides_page_style(library):
+    panel = {
+        "speakers": {"ema": [0.5, 0.9]},
+        "bubbles": [{"text": "a", "speaker": "ema", "tail": "wedge"}],
+    }
+    svg = build_svg(_page(panel, bubble_style={"tail": "line"}), library=library)
     assert "stroke-linecap" not in svg
 
 
@@ -178,11 +259,12 @@ def test_validate_flags_bad_speakers_and_tail_keys(library):
     panel = {
         "speakers": {"ema": [0.5]},
         "bubbles": [
-            {"text": "a", "speaker": "nobody", "tail_shape": "zigzag", "tail_from": "x"}
+            {"text": "a", "speaker": "nobody", "tail": "zigzag", "tail_from": "x"},
+            {"text": "b", "tail_bend": 1.5},
         ],
     }
     problems = validate_spec(_page(panel), library=library)
-    assert len(problems) == 4
+    assert len(problems) == 5
 
 
 def test_warns_on_reading_order(library):

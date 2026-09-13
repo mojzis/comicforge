@@ -10,7 +10,7 @@ fractions in the spec are relative to that box.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import pairwise
 
 from .bubbles import (
@@ -21,6 +21,7 @@ from .bubbles import (
     merge_style,
     resolve_style,
     tail_geometry,
+    tail_look,
 )
 
 # How far from a panel edge a bubble is kept, and the gap left between two
@@ -37,11 +38,15 @@ LEVEL = 0.25
 # shorter side away from every speaker point.
 SPEAKER_CLEARANCE = 0.08
 
+# a curve or line tail with no `tail_bend` bows this much, away from the
+# nearest other bubble (or the panel centre) so neighbouring tails part
+AUTO_BEND = 0.35
+
 # a warning quotes this much of a bubble's text
 LABEL_CHARS = 24
 
 # per-bubble keys that override the page's `bubble_style` for that bubble
-_TAIL_KEYS = ("tail_shape", "tail_gap", "tail_from")
+_TAIL_KEYS = ("tail", "tail_gap", "tail_from", "tail_bend")
 
 
 @dataclass(frozen=True)
@@ -230,6 +235,8 @@ def layout_bubbles(panel, px, py, pw, ph, bubble_style=None) -> list[Placement]:
         max_chars = b.get("max_chars", 22)
         fs = b.get("fs", page_style["font_size"])
         st = merge_style(page_style, {k: b.get(k) for k in _TAIL_KEYS})
+        if tail_look(st)[0] == "none":
+            target = None
         bw, bh = bubble_size(text, kind, max_chars, fs, style=st)
         body_w, body_h = body = body_size(text, max_chars, fs, style=st)
         tails = [p.tail for p in out if p.tail is not None]
@@ -265,7 +272,33 @@ def layout_bubbles(panel, px, py, pw, ph, bubble_style=None) -> list[Placement]:
         )
         placed.append(p.box)
         out.append(p)
-    return out
+    return [_auto_bend(p, out, box) for p in out]
+
+
+def _auto_bend(p: Placement, placements: list[Placement], box) -> Placement:
+    """*p* with its curve / line tail bowed ``AUTO_BEND`` away from the nearest
+    other bubble — or, alone in the panel, from the panel centre — unless it
+    sets ``tail_bend`` itself. The chosen bend goes into its style, so drawing
+    the bubble from that style reproduces the same tail."""
+    tail = p.tail
+    if tail is None or tail.shape not in ("curve", "line"):
+        return p
+    if p.style.get("tail_bend") is not None:
+        return p
+    others = [o.centre for o in placements if o is not p]
+    px, py, pw, ph = box
+    (sx, sy), (tx, ty) = tail.start, tail.target
+    if others:
+        ax, ay = min(others, key=lambda c: (c[0] - sx) ** 2 + (c[1] - sy) ** 2)
+    else:
+        ax, ay = px + pw / 2, py + ph / 2
+    # which side of the tail's line the thing to avoid is on: + is the side a
+    # positive bend bows toward
+    side = (tx - sx) * (ay - sy) - (ty - sy) * (ax - sx)
+    st = {**p.style, "tail_bend": -AUTO_BEND if side > 0 else AUTO_BEND}
+    body_w, body_h = body_size(p.text, p.max_chars, p.fs, style=st)
+    new_tail = tail_geometry(*p.centre, body_w, body_h, tail.target, st)
+    return replace(p, style=st, tail=new_tail)
 
 
 def _label(p: Placement) -> str:

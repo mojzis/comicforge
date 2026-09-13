@@ -1,0 +1,44 @@
+# Tail styles: `tail:` picks the look whatever the bubble kind; `tail_bend`
+# bows a curve or a line (unset: a gentle bend away from the neighbour).
+page: [180, 130]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+bubble_style: {font_size: 13}
+
+rows:
+  - panels:
+      - caption: "tail: wedge (default)"
+        bg: "#fbfaf6"
+        actors:
+          - {char: tom, face: happy, x: 0.28, y: 0.72, scale: 0.6}
+          - {char: tom, face: neutral, x: 0.72, y: 0.72, scale: 0.6, flip: true}
+        bubbles:
+          - {text: "Ahoj!", speaker: tom, at: tl, to: [0.28, 0.48]}
+          - {text: "Nazdar.", at: tr, to: [0.72, 0.48]}
+      - caption: "tail: curve — auto bend"
+        bg: "#fbfaf6"
+        actors:
+          - {char: tom, face: happy, x: 0.28, y: 0.72, scale: 0.6}
+          - {char: tom, face: neutral, x: 0.72, y: 0.72, scale: 0.6, flip: true}
+        bubbles:
+          - {text: "Ahoj!", at: tl, to: [0.28, 0.48], tail: curve}
+          - {text: "Nazdar.", at: tr, to: [0.72, 0.48], tail: curve}
+  - panels:
+      - caption: "tail: line — tail_bend: 0.8, then auto"
+        bg: "#fbfaf6"
+        actors:
+          - {char: tom, face: happy, x: 0.28, y: 0.72, scale: 0.6}
+          - {char: tom, face: neutral, x: 0.72, y: 0.72, scale: 0.6, flip: true}
+        bubbles:
+          - {text: "Ahoj!", at: tl, to: [0.28, 0.48], tail: line, tail_bend: 0.8}
+          - {text: "Nazdar.", at: tr, to: [0.72, 0.48], tail: line}
+      - caption: "thought + curve, shout + none"
+        bg: "#fbfaf6"
+        actors:
+          - {char: tom, face: happy, x: 0.28, y: 0.72, scale: 0.6}
+          - {char: tom, face: angry, x: 0.72, y: 0.72, scale: 0.6, flip: true}
+        bubbles:
+          - {text: "Hmm…", kind: thought, at: tl, to: [0.28, 0.48], tail: curve}
+          - {text: "TICHO!", kind: shout, at: tr, to: [0.72, 0.48], tail: none}

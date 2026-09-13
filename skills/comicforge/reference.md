@@ -444,8 +444,8 @@ renders a default-faced, default-posed actor with no error. `validate` flags:
   a bad `crop` (unknown side, negative, or trimming the whole image); a row
   `height` that is neither a weight nor `auto`, an `auto` row with no image
 - bubble `speaker` naming neither an actor nor a `speakers:` point in the panel;
-  a malformed `speakers:` point; unknown bubble `kind`, `tail_shape` or
-  `tail_from`
+  a malformed `speakers:` point; unknown bubble `kind`, `tail`, `tail_from`,
+  or a `tail_bend` outside -1..1
 - structural holes (a page with no `rows`, a row with no `panels`, a bubble with
   no `text`, a `scene` spec with neither `scene:` nor `image:`); an unknown
   `type:`, or a `type:` that contradicts the structure (a `scene` spec carrying
@@ -608,8 +608,8 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   corner radius also clips the art),
   `bubble_style` (page-wide bubble look: `font`, `font_size`, `pad`, `radius`,
   `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`, `em` — width scale of
-  the text measure for narrower fonts; `tail_shape` `wedge`/`line`, `tail_gap`,
-  `tail_from`)
+  the text measure for narrower fonts; `tail` `wedge`/`curve`/`line`/`none`,
+  `tail_bend`, `tail_gap`, `tail_from`)
 - **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
   (fixed; weighted rows share the rest, all-fixed leaves the bottom blank) or
   `rows[].height: auto` (tallest of each panel's image aspect at its width,
@@ -648,7 +648,9 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   stack, so `tl` + `tr` sit side by side and `bl` climbs up from the bottom.
   `to: [x, y]` (panel fractions) aims a tail without a speaker. `tail_from`
   (`t`/`b`/`l`/`r`, a position 0..1, or `{edge, pos}`) picks where the tail
-  leaves, `tail_shape: line` draws a line to the speaker. On a panel with
+  leaves; `tail` (`wedge`/`curve`/`line`/`none`, any kind) picks the look
+  and `tail_bend` (-1..1, auto: away from the nearest bubble) bows a curve
+  or line. On a panel with
   `speakers:`, bubbles with a speaker and no `x`/`y`/`at` are placed in
   reading order (speaker's side, each top clearly below the previous one's,
   clear of heads and earlier tails). Every bubble is

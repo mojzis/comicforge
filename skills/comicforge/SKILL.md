@@ -261,8 +261,13 @@ bubbles: [ ... ]
                     #           (overrides bubble_style.uppercase)
   tail_from: r      # OPTIONAL where the tail leaves: edge t/b/l/r, a position
                     #           0..1 along the auto edge, or {edge: r, pos: 0.8}
-  tail_shape: line  # OPTIONAL wedge (default) | line: a thin line running to
-                    #           just short of the speaker (thought: dotted)
+  tail: curve       # OPTIONAL wedge (default) | curve: tapered comic tail with
+                    #           curved sides | line: a thin line running to just
+                    #           short of the speaker | none. Any kind; a thought
+                    #           keeps its circles (dotted along a line)
+  tail_bend: 0.4    # OPTIONAL curve/line bow, -1..1, 0 straight, + = right of
+                    #           travel; omit for a gentle bend away from the
+                    #           nearest bubble (or panel centre)
   tail_gap: 12      # OPTIONAL px a line tail stops short of its target
 ```
 
@@ -279,7 +284,8 @@ bubble_style:
   ink: "#21304a"    # text colour;  font: "DejaVu Sans, sans-serif"
   em: 1.0           # width scale of the text measure — 0.8 for a narrow
                     #   handwriting font, so bubbles hug the words
-  tail_shape: wedge # wedge | line;  tail_gap: 12;  tail_from: (auto)
+  tail: wedge       # wedge | curve | line | none;  tail_bend: (auto)
+                    #   tail_gap: 12;  tail_from: (auto)
 rows: [ ... ]
 ```
 
@@ -293,8 +299,9 @@ you how tall a band will be, for sizing rows.
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.
 The tail is a slim wedge dropping from the bubble underside; its tip is capped
-short so it never overlaps the figure (`tail_shape: line` runs a thin line to
-just short of the speaker instead).
+short so it never overlaps the figure (`tail: curve` draws the classic curved
+comic tail, `tail: line` a thin line to just short of the speaker, `tail: none`
+nothing).
 
 `cmf validate` also prints layout **warnings** (exit 0 unless `--strict`): a
 bubble out of reading order, crossing tails, a bubble covering a speaker point.

@@ -35,9 +35,9 @@ unnecessary.
 | `shout` | A spiky burst |
 
 The tail drops from the bubble's underside toward its target, and its tip is cut
-short so it never lands on the figure's face. [`tail_shape: line`](#tail_shape-a-line-to-the-speaker)
-draws a line all the way instead, and [`tail_from`](#tail_from-where-the-tail-leaves)
-picks where it leaves the bubble.
+short so it never lands on the figure's face. [`tail:`](#tail-the-tails-look)
+picks another look — a curved comic tail, a line all the way, or none — and
+[`tail_from`](#tail_from-where-the-tail-leaves) picks where it leaves the bubble.
 
 ## Placing a bubble
 
@@ -197,18 +197,44 @@ but kept within the middle of that edge. `tail_from` overrides either half:
 edge, top end of a side) to `1`. Set it on a bubble, or page-wide in
 `bubble_style`.
 
-### `tail_shape:` — a line to the speaker
+### `tail:` — the tail's look
 
 ```yaml
-bubble_style: {tail_shape: line}    # every bubble on the page
+bubble_style: {tail: curve}    # every bubble on the page
 # …or per bubble:
-- {text: "Mně to nevadí.", speaker: hen, tail_shape: line}
+- {text: "Mně to nevadí.", speaker: hen, tail: line, tail_bend: -0.5}
 ```
 
-| `tail_shape` | Drawn as |
+=== "Render"
+
+    <figure class="cf-demo" markdown>
+    ![Four panels: a wedge tail, curved tails bowing apart, bent line tails, a thought trail on a curve and a shout with no tail](../assets/renders/tails.png)
+    </figure>
+
+=== "Spec"
+
+    ```yaml
+    --8<-- "demos/tails.yaml"
+    ```
+
+The look is independent of the bubble `kind`:
+
+| `tail` | Drawn as |
 |---|---|
-| `wedge` | The default slim tail, cut short of the figure |
-| `line` | A thin ink line from the bubble to just short of the speaker, on a paper-coloured halo so it stays legible over busy art. A `thought` gets a trail of small dots instead |
+| `wedge` | The default: a slim, straight tail, cut short of the figure |
+| `curve` | The classic comic tail: a longer tapered wedge with curved sides, joined to the bubble without a line across its base |
+| `line` | A thin ink line from the bubble to just short of the speaker, on a paper-coloured halo so it stays legible over busy art |
+| `none` | No tail. The bubble is still placed by its `speaker` |
+
+A `thought` keeps its trail of circles along whatever path the tail takes — three
+shrinking circles for `wedge` and `curve`, a dotted trail for `line`.
+
+`tail_bend` bows a `curve` or `line` through one control point: from `-1` to
+`1`, `0` straight, positive to the right of the tail's direction as it runs from
+bubble to speaker. Leave it unset and the tail bends gently *away* from the
+nearest other bubble in the panel — or from the panel centre, when the bubble is
+alone — so neighbouring tails part instead of crossing. A `wedge` is always
+straight.
 
 `tail_gap` (default `12` px) is how far short of the target a line stops.
 
@@ -240,7 +266,7 @@ available from Python, without rendering, via
 | `max_chars` | `22` | Wrap width, in characters |
 | `fs` | from `bubble_style` | Font size in px for this bubble |
 | `uppercase` | from `bubble_style` | Force this bubble's text to caps |
-| `tail_shape` / `tail_gap` / `tail_from` | from `bubble_style` | This bubble's tail |
+| `tail` / `tail_bend` / `tail_gap` / `tail_from` | from `bubble_style` | This bubble's tail |
 
 Wrapping breaks on spaces at `max_chars`, and the outline is sized from an
 *estimate* of the rendered width — capitals are measured wider than lowercase,
@@ -277,7 +303,8 @@ page. Per-bubble keys still win.
 | `ink` | `#21304a` | Text colour |
 | `uppercase` | `false` | Render all bubble text in caps |
 | `em` | `1.0` | Width scale of the text measure |
-| `tail_shape` | `wedge` | `wedge` or `line` |
+| `tail` | `wedge` | `wedge`, `curve`, `line` or `none` |
+| `tail_bend` | auto | Bow of a `curve` / `line` tail, `-1..1` |
 | `tail_gap` | `12` | Px a `line` tail stops short of its target |
 | `tail_from` | auto | Where tails leave: edge, position, or `{edge, pos}` |
 

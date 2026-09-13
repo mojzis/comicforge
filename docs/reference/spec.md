@@ -118,7 +118,8 @@ Drawn in list order — later actors cover earlier ones.
 | `max_chars` | `22` | Wrap width in characters |
 | `fs` | `bubble_style.font_size` | Font size in px for this bubble |
 | `uppercase` | `bubble_style.uppercase` | Force this bubble to caps |
-| `tail_shape` | `bubble_style.tail_shape` | `wedge` or `line` |
+| `tail` | `bubble_style.tail` | `wedge`, `curve`, `line` or `none` — any `kind` |
+| `tail_bend` | `bubble_style.tail_bend` | Bow of a `curve` / `line` tail, `-1..1`, `0` straight, positive to the right of travel; unset bends gently away from the nearest bubble (or the panel centre) |
 | `tail_gap` | `bubble_style.tail_gap` | Px a `line` tail stops short of its target |
 | `tail_from` | `bubble_style.tail_from` | Where the tail leaves: `t`/`b`/`l`/`r`, a position `0..1` along the auto edge, or `{edge, pos}` |
 
@@ -151,7 +152,8 @@ Page-wide; every per-bubble key above overrides it.
 | `ink` | `#21304a` | Text colour |
 | `uppercase` | `false` | Render all bubble text in caps |
 | `em` | `1.0` | Width scale of the text measure — lower for a narrow font |
-| `tail_shape` | `wedge` | `wedge` (short slim tail) or `line` (thin line to just short of the speaker) |
+| `tail` | `wedge` | `wedge` (short slim tail), `curve` (tapered, curved sides), `line` (thin line to just short of the speaker) or `none` |
+| `tail_bend` | auto | Bow of `curve` / `line` tails — see `bubbles[]` |
 | `tail_gap` | `12` | Px a `line` tail stops short of its target |
 | `tail_from` | auto | Where tails leave the bubble — see `bubbles[]` |
 

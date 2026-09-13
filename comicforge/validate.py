@@ -17,7 +17,7 @@ without drawing anything, collecting *every* problem at once:
 - panel keys the renderer doesn't know (``imge:`` for ``image:``, say)
 - bubble ``speaker`` that names neither an actor nor a ``speakers:`` point in
   the panel, a malformed ``speakers:`` point, unknown bubble ``kind``, ``at``
-  anchor, ``tail_shape`` or ``tail_from``
+  anchor, ``tail``, ``tail_bend`` or ``tail_from``
 - structural holes (no ``rows``, a row without ``panels``, a bubble with no text)
 
 It returns a list of human-readable problem strings (empty == the spec is sound).
@@ -258,12 +258,17 @@ def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
 
 
 def _check_tail_keys(style: dict, where: str, problems: list[str]) -> None:
-    """``tail_shape`` / ``tail_from`` on a bubble or the page's ``bubble_style``."""
-    shape = style.get("tail_shape")
+    """``tail`` / ``tail_bend`` / ``tail_from`` on a bubble or the page's
+    ``bubble_style``."""
+    shape = style.get("tail")
     if shape is not None and shape not in bubbles.TAIL_SHAPES:
         problems.append(
-            f"{where}: tail_shape '{shape}' unknown. Have: {list(bubbles.TAIL_SHAPES)}"
+            f"{where}: tail '{shape}' unknown. Have: {list(bubbles.TAIL_SHAPES)}"
         )
+    try:
+        bubbles.tail_look({"tail_bend": style.get("tail_bend")})
+    except ValueError as e:
+        problems.append(f"{where}: {e}")
     try:
         bubbles.tail_from(style.get("tail_from"))
     except ValueError as e:

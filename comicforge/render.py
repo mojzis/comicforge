@@ -62,7 +62,8 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
                 to: [0.4, 0.5]       # explicit tail target (else the speaker's head)
                 tail_from: b         # where the tail leaves: edge t/b/l/r, a
                                      # position 0..1 along it, or {edge:, pos:}
-                tail_shape: line     # wedge (default) | line (runs to the speaker)
+                tail: curve          # wedge (default) | curve | line | none
+                tail_bend: 0.4       # curve/line: -1..1, 0 straight (else auto)
             speakers:                # head positions for panels without actors
               ema: [0.72, 0.3]       # (e.g. raster art), panel fractions
 
@@ -417,7 +418,9 @@ def panel_bubble_layout(panel: dict, width, height, bubble_style=None) -> dict:
             tail = {
                 "edge": p.tail.edge,
                 "shape": p.tail.shape,
+                "bend": p.tail.bend,
                 "start": frac(p.tail.start),
+                "control": frac(p.tail.control),
                 "tip": frac(p.tail.tip),
                 "target": frac(p.tail.target),
             }
@@ -456,8 +459,10 @@ def bubble_layout(spec, row: int = 0, col: int = 0, spec_dir=None) -> dict:
          "bubbles": [{"index": 0, "text": "…", "kind": "speech",
                       "speaker": "ema", "auto": True,  # reading-order placed
                       "center": [x, y], "box": [x0, y0, x1, y1],
-                      "tail": {"edge": "b", "shape": "wedge", "start": [x, y],
+                      "tail": {"edge": "b", "shape": "wedge", "bend": 0.0,
+                               "start": [x, y], "control": [x, y],
                                "tip": [x, y], "target": [x, y]} or None}],
+                                                   # None: no target, or tail: none
          "warnings": ["…"]}                        # as `validate` reports them
     """
     if not isinstance(spec, dict):
