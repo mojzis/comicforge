@@ -440,7 +440,9 @@ renders a default-faced, default-posed actor with no error. `validate` flags:
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
 - panel keys the renderer doesn't know — `imge:` for `image:`, say
 - raster `image:` files that are missing, unreadable, or of an unsupported type;
-  an `image:` with no `src`, an unknown image key, an unknown `fit`
+  an `image:` with no `src`, an unknown image key, an unknown `fit` or `at`,
+  a bad `crop` (unknown side, negative, or trimming the whole image); a row
+  `height` that is neither a weight nor `auto`, an `auto` row with no image
 - bubble `speaker` naming no actor in the panel; unknown bubble `kind`
 - structural holes (a page with no `rows`, a row with no `panels`, a bubble with
   no `text`, a `scene` spec with neither `scene:` nor `image:`); an unknown
@@ -604,16 +606,28 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`, `em` — width scale of
   the text measure for narrower fonts)
 - **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
-  (fixed; weighted rows share the rest, all-fixed leaves the bottom blank),
+  (fixed; weighted rows share the rest, all-fixed leaves the bottom blank) or
+  `rows[].height: auto` (tallest of each panel's image aspect at its width,
+  after `crop:`, plus its caption band; auto rows that overflow the page have
+  their art — not their captions — squeezed by one common factor, the excess
+  cropped by `cover`; needs an `image:` panel; fixed rows are measured first,
+  weighted rows get what is left; `comicforge.page_squeeze(spec)` returns that
+  art factor, 1.0 when nothing is squeezed — use it to paginate),
   `rows[].panels[].width` (relative weight), panel keys: `bg`, `frame`
   (per-panel override), `caption` (narration band under the art, inside the
   frame: a string or `{text, max_chars}`; page-wide `caption_style` with
-  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`, `align`, `rule`, `uppercase`),
+  `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars` (a count, or `auto` to
+  wrap to the band's width), `em` (width scale of the `auto` measure),
+  `align`, `rule`, `uppercase`),
   `scene`, `image`, `actors`, `pixel`, `bubbles` — `validate` flags any other
   panel key as a typo
-- **Image keys**: `image: path.png` or `image: {src:, fit:}` with
+- **Image keys**: `image: path.png` or `image: {src:, fit:, at:, crop:}` with
   `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
-  (fit inside + letterbox). The path resolves against the spec file's dir and
+  (fit inside + letterbox); `at:` (`t`, `b`, `l`, `r`, `tl`, `tr`, `bl`, `br`,
+  `c` — default centre) pins the image to that edge so `cover` crops the
+  opposite side; `crop: {top, bottom, left, right}` trims image pixels off
+  each edge before fitting (and before a `height: auto` row or a scene canvas
+  measures it). The path resolves against the spec file's dir and
   the image is embedded as a base64 data URI, so SVG/PDF output stays
   self-contained. A `type: scene` spec can use `image:` in place of `scene:`,
   and takes its canvas size from the image

@@ -12,6 +12,16 @@ from xml.sax.saxutils import escape
 FONT = "DejaVu Sans, Helvetica, Arial, sans-serif"
 INK = "#21304a"
 
+# `at:` anchor -> (horizontal, vertical) edge: l/c/r x t/c/b. Bubbles use it to
+# hug a corner of the panel; a raster image uses it to pick which part survives
+# a crop.
+ANCHORS = {
+    "tl": ("l", "t"), "t": ("c", "t"), "tc": ("c", "t"), "tr": ("r", "t"),
+    "bl": ("l", "b"), "b": ("c", "b"), "bc": ("c", "b"), "br": ("r", "b"),
+    "l": ("l", "c"), "c": ("c", "c"), "r": ("r", "c"), "cl": ("l", "c"),
+    "cr": ("r", "c"),
+}  # fmt: skip
+
 # Every knob a bubble's look has. A page's `bubble_style:` overrides any of
 # these for the whole page; a bubble's own keys override again.
 DEFAULT_STYLE = {
@@ -28,13 +38,19 @@ DEFAULT_STYLE = {
 }
 
 
-def resolve_style(*layers) -> dict:
-    """Merge style dicts over ``DEFAULT_STYLE``; later layers win, ``None`` skipped."""
-    out = dict(DEFAULT_STYLE)
+def merge_style(defaults: dict, *layers) -> dict:
+    """Merge style dicts over *defaults*; later layers win, ``None`` values and
+    empty layers are skipped."""
+    out = dict(defaults)
     for layer in layers:
         if layer:
             out.update({k: v for k, v in layer.items() if v is not None})
     return out
+
+
+def resolve_style(*layers) -> dict:
+    """Merge style dicts over ``DEFAULT_STYLE``; later layers win, ``None`` skipped."""
+    return merge_style(DEFAULT_STYLE, *layers)
 
 
 def _wrap(text: str, max_chars: int) -> list[str]:

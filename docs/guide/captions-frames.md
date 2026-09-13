@@ -43,6 +43,22 @@ The band's height depends on how many lines the text wraps to, which depends on
 ```python
 from comicforge import caption
 caption.height("Later that afternoon, the yard went quiet.", {"font_size": 13})
+caption.height("…", {"max_chars": "auto"}, width=744)  # auto wrap needs the panel width
+```
+
+Or don't: a [`height: auto` row](pages.md#rows-sized-by-their-pictures) adds
+the band for you.
+
+### Wrapping to the width
+
+`max_chars: auto` wraps to the band's width instead of a character count — the
+text is measured with the same estimate bubbles use, so a caption fills the
+panel it sits in whether the panel is a third of the page or all of it. The
+estimate is tuned for DejaVu Sans; for a narrower font set `em` below `1`
+(`0.9` means "this font is a tenth narrower"), for a wider one above.
+
+```yaml
+caption_style: {max_chars: auto, em: 0.95}
 ```
 
 !!! warning "Actors draw over the band"
@@ -63,7 +79,8 @@ Set page-wide at the top level; a panel's `caption: {…}` mapping can override
 | `ink` | `#21304a` | Text colour |
 | `bg` | `#ffffff` | Band colour |
 | `pad` | `8` | Text inset from the band edge |
-| `max_chars` | `60` | Wrap width in characters |
+| `max_chars` | `60` | Wrap width in characters, or `auto` for the band's width |
+| `em` | `1.0` | Width scale of the text measure, for `max_chars: auto` |
 | `align` | `left` | `left` or `center` |
 | `rule` | `true` | Hairline between art and band |
 | `uppercase` | `false` | Render caption text in caps |

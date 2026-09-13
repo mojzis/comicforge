@@ -6,13 +6,17 @@ the bottom of the panel, separated from the art by a hairline; the art box
 shrinks to make room, so bubbles and actors keep their coordinates relative to
 the picture, not the band. A page's ``caption_style:`` sets the look for every
 caption; a panel can give ``caption: {text:, max_chars:}`` to wrap differently.
+
+``max_chars: auto`` wraps to the band's width instead of a character count,
+measuring the text with the bubble estimate scaled by the style's ``em`` — set
+``em`` below 1 for a font narrower than DejaVu Sans.
 """
 
 from __future__ import annotations
 
 from xml.sax.saxutils import escape
 
-from .bubbles import FONT, INK, _wrap
+from .bubbles import FONT, INK, _wrap, merge_style, text_width
 
 DEFAULT_STYLE = {
     "font": FONT,
@@ -20,7 +24,8 @@ DEFAULT_STYLE = {
     "ink": INK,  # text colour
     "bg": "#ffffff",  # band colour
     "pad": 8,  # text inset from the band edge
-    "max_chars": 60,  # wrap width; a panel's caption can override
+    "max_chars": 60,  # wrap width; "auto" = the band's width; a caption can override
+    "em": 1.0,  # width scale for the text measure when max_chars is auto
     "align": "left",  # left | center
     "rule": True,  # hairline between art and band (in the frame colour)
     "uppercase": False,
@@ -39,27 +44,44 @@ def normalize(value) -> dict | None:
 
 
 def resolve_style(*layers) -> dict:
-    out = dict(DEFAULT_STYLE)
-    for layer in layers:
-        if layer:
-            out.update({k: v for k, v in layer.items() if v is not None})
-    return out
+    return merge_style(DEFAULT_STYLE, *layers)
 
 
-def lines(caption: dict, style: dict) -> list[str]:
+def lines(caption: dict, style: dict, width: float | None = None) -> list[str]:
+    """Wrap a caption for a band *width* px wide (needed for ``max_chars: auto``)."""
     text = " ".join(caption["text"].split())
     if caption.get("uppercase", style["uppercase"]):
         text = text.upper()
-    return _wrap(text, caption.get("max_chars", style["max_chars"]))
+    max_chars = caption.get("max_chars", style["max_chars"])
+    if max_chars != "auto":
+        return _wrap(text, max_chars)
+    if width is None:
+        raise ValueError("caption max_chars: auto needs the band width to wrap to")
+    return _wrap_to(text, width - 2 * style["pad"], style["font_size"] * style["em"])
 
 
-def height(caption, style=None) -> float:
-    """Band height in px a caption will take, 0 when there is none."""
+def _wrap_to(text: str, limit: float, fs: float) -> list[str]:
+    """Greedy word wrap so no line measures wider than *limit* px (a single
+    over-long word still gets a line of its own)."""
+    out, cur = [], ""
+    for word in text.split():
+        trial = f"{cur} {word}" if cur else word
+        if cur and text_width(trial, fs) > limit:
+            out.append(cur)
+            cur = word
+        else:
+            cur = trial
+    return [*out, cur] if cur else out or [""]
+
+
+def height(caption, style=None, width: float | None = None) -> float:
+    """Band height in px a caption will take in a panel *width* px wide, 0 when
+    there is none."""
     cap = normalize(caption)
     if cap is None:
         return 0.0
     st = resolve_style(style)
-    return len(lines(cap, st)) * st["font_size"] * 1.25 + 2 * st["pad"]
+    return len(lines(cap, st, width)) * st["font_size"] * 1.25 + 2 * st["pad"]
 
 
 def band(caption: dict, style: dict, x, y, w, h, rule_color, rule_width) -> str:
@@ -82,7 +104,7 @@ def band(caption: dict, style: dict, x, y, w, h, rule_color, rule_width) -> str:
     top = y + st["pad"] + fs
     spans = "".join(
         f'<tspan x="{tx:.1f}" y="{top + i * lh:.1f}">{escape(ln)}</tspan>'
-        for i, ln in enumerate(lines(caption, st))
+        for i, ln in enumerate(lines(caption, st, w))
     )
     parts.append(
         f'<text text-anchor="{anchor}" font-family="{st["font"]}" font-size="{fs}" '

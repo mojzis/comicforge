@@ -29,14 +29,17 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
     pixel_dir: "../pixel"      # path to pixel-art dir
     rows:
       - height: 1.0                  # relative weight (optional, default 1)
-                                     # or `height_mm: 60` for a fixed height;
-                                     # weighted rows share what fixed rows leave
+                                     # or `height_mm: 60` for a fixed height,
+                                     # or `height: auto` to size the row from its
+                                     # images + captions (squeezed to fit the page);
+                                     # weighted rows share what the others leave
         panels:
           - bg: "#fbfaf6"            # optional panel background
             caption: "Rain came."    # narration band under the art, inside
                                      # the frame; or {text:, max_chars:}
             image: "art/01.png"      # optional raster background, scaled to
-                                     # cover the panel; or {src:, fit:}
+                                     # cover the panel; or {src:, fit:, at:,
+                                     # crop: {top:, bottom:, left:, right:}}
             actors:
               - char: tom
                 pose: walk           # optional; defaults to character's default
@@ -84,7 +87,7 @@ import cairosvg
 import yaml
 
 from . import caption, pixelart, raster
-from .bubbles import FONT, INK, bubble, bubble_size, resolve_style
+from .bubbles import ANCHORS, FONT, INK, bubble, bubble_size, resolve_style
 from .library import Library
 from .pixelart import PixelLibrary
 from .scene import Scene, SceneLibrary
@@ -161,25 +164,88 @@ class _NullSceneLibrary:
         return {}
 
 
-def _panels(rows, x0, y0, W, H, gutter, k=1.0):
-    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph).
+def _panel_widths(panels, W, gutter) -> list[float]:
+    """Width of every panel in a row: ``width`` weights sharing *W* after gutters."""
+    total = sum(p.get("width", 1) for p in panels)
+    avail = W - gutter * (len(panels) - 1)
+    return [avail * p.get("width", 1) / total for p in panels]
 
-    A row with ``height_mm`` is that tall (times *k* px/mm); the other rows
-    share whatever height is left by their ``height`` weight. When every row
-    is fixed the remainder of the page stays blank.
+
+def _auto_parts(row, W, gutter, caption_style, spec_dir) -> list[tuple[float, float]]:
+    """(art_px, caption_band_px) per panel of a ``height: auto`` row: the art is
+    as tall as the panel's image (after ``crop:``) wants at the panel's width."""
+    parts = []
+    widths = _panel_widths(row["panels"], W, gutter)
+    for panel, pw in zip(row["panels"], widths, strict=True):
+        img = panel.get("image")
+        art = 0.0
+        if img is not None:
+            _x, _y, iw, ih = raster.region(img, spec_dir)
+            art = pw * ih / iw
+        parts.append((art, caption.height(panel.get("caption"), caption_style, pw)))
+    if not any(art for art, _band in parts):
+        raise ValueError(
+            "a `height: auto` row needs a panel with an `image:` to take its "
+            "height from"
+        )
+    return parts
+
+
+def _auto_height(parts, squeeze=1.0) -> float:
+    """A ``height: auto`` row's height: tall enough for every panel's art
+    (times *squeeze*) plus that panel's own caption band."""
+    return max(squeeze * art + band for art, band in parts)
+
+
+def _squeeze(autos, free) -> float:
+    """The largest factor <= 1 the art of every auto row can be scaled by so
+    the rows fit in *free* px. Caption bands never shrink."""
+    if sum(_auto_height(parts) for parts in autos) <= free:
+        return 1.0
+    lo, hi = 0.0, 1.0
+    for _ in range(40):  # total height is monotone in the factor: bisect
+        mid = (lo + hi) / 2
+        if sum(_auto_height(parts, mid) for parts in autos) <= free:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def _row_heights(rows, W, H, gutter, k=1.0, caption_style=None, spec_dir=None):
+    """(height in px of every row in a *W* x *H* grid, auto-row art squeeze).
+
+    A row with ``height_mm`` is that tall (times *k* px/mm). A ``height: auto``
+    row is as tall as its pictures want at their panel widths plus the caption
+    bands; when the auto rows do not fit, their art is scaled down by one common
+    factor until they do (``fit: cover`` then crops the excess, per the image's
+    ``at:``). The remaining rows share whatever height is left by their
+    ``height`` weight. When no row is weighted the remainder stays blank.
     """
-    fixed = {ri: r["height_mm"] * k for ri, r in enumerate(rows) if "height_mm" in r}
-    wsum = sum(r.get("height", 1) for ri, r in enumerate(rows) if ri not in fixed)
-    avail_h = H - gutter * (len(rows) - 1) - sum(fixed.values())
+    heights = {ri: r["height_mm"] * k for ri, r in enumerate(rows) if "height_mm" in r}
+    autos = {
+        ri: _auto_parts(r, W, gutter, caption_style, spec_dir)
+        for ri, r in enumerate(rows)
+        if ri not in heights and r.get("height") == "auto"
+    }
+    free = H - gutter * (len(rows) - 1) - sum(heights.values())
+    squeeze = _squeeze(autos.values(), free)
+    heights.update({ri: _auto_height(parts, squeeze) for ri, parts in autos.items()})
+    weighted = [ri for ri in range(len(rows)) if ri not in heights]
+    left = max(0.0, free - sum(heights[ri] for ri in autos))
+    wsum = sum(rows[ri].get("height", 1) for ri in weighted)
+    heights.update({ri: left * rows[ri].get("height", 1) / wsum for ri in weighted})
+    return [heights[ri] for ri in range(len(rows))], squeeze
+
+
+def _panels(rows, x0, y0, W, heights, gutter):
+    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph) for rows of the
+    given *heights* (see :func:`_row_heights`)."""
     cy = y0
-    for ri, row in enumerate(rows):
-        ph = fixed[ri] if ri in fixed else avail_h * row.get("height", 1) / wsum
-        cols = row["panels"]
-        cw_sum = sum(c.get("width", 1) for c in cols)
-        avail_w = W - gutter * (len(cols) - 1)
+    for ri, (row, ph) in enumerate(zip(rows, heights, strict=True)):
         cx = x0
-        for ci, panel in enumerate(cols):
-            pw = avail_w * panel.get("width", 1) / cw_sum
+        widths = _panel_widths(row["panels"], W, gutter)
+        for ci, (panel, pw) in enumerate(zip(row["panels"], widths, strict=True)):
             yield ri, ci, panel, cx, cy, pw, ph
             cx += pw + gutter
         cy += ph + gutter
@@ -222,12 +288,7 @@ def build_svg(
             "`comicforge scene` instead of `render`."
         )
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    page = spec.get("page", "A4")
-    w_mm, h_mm = PAGE[page] if isinstance(page, str) else page
-    k = spec.get("px_per_mm", 4)
-    W, H = w_mm * k, h_mm * k
-    margin = spec.get("margin_mm", 12) * k
-    gutter = spec.get("gutter_mm", 5) * k
+    W, H, _k, margin = _page_metrics(spec)
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
@@ -235,7 +296,6 @@ def build_svg(
         f'<rect width="{W}" height="{H}" fill="{spec.get("bg", "#ffffff")}"/>',
     ]
 
-    top = margin
     title = spec.get("title")
     if title:
         tst = _title_style(spec)
@@ -245,14 +305,8 @@ def build_svg(
             f'font-family="{tst["font"]}" font-size="{ts}" font-weight="bold" '
             f'fill="{tst["color"]}">{escape(title)}</text>'
         )
-        top = margin + ts + 14
 
-    grid_x, grid_y = margin, top
-    grid_w, grid_h = W - 2 * margin, H - top - margin
-
-    for _ri, _ci, panel, px, py, pw, ph in _panels(
-        spec["rows"], grid_x, grid_y, grid_w, grid_h, gutter, k
-    ):
+    for _ri, _ci, panel, px, py, pw, ph in _layout(spec, spec_dir):
         parts.append(
             _render_panel(
                 panel,
@@ -281,19 +335,42 @@ def _title_style(spec, font_size=TITLE_STYLE["font_size"]) -> dict:
     return {**TITLE_STYLE, "font_size": font_size, **(spec.get("title_style") or {})}
 
 
-def _layout(spec):
-    """Yield (row, col, panel, px, py, pw, ph) for every panel, using the same
-    page metrics as build_svg."""
+def _page_metrics(spec) -> tuple[float, float, float, float]:
+    """(page width px, page height px, px per mm, margin px) of a page spec."""
     page = spec.get("page", "A4")
     w_mm, h_mm = PAGE[page] if isinstance(page, str) else page
     k = spec.get("px_per_mm", 4)
-    W, H = w_mm * k, h_mm * k
-    margin = spec.get("margin_mm", 12) * k
+    return w_mm * k, h_mm * k, k, spec.get("margin_mm", 12) * k
+
+
+def _grid(spec, spec_dir=None):
+    """(grid x, grid y, grid width, gutter, row heights, squeeze) of a page spec.
+    *spec_dir* resolves the images a ``height: auto`` row measures."""
+    W, H, k, margin = _page_metrics(spec)
     gutter = spec.get("gutter_mm", 5) * k
     top = margin + (_title_style(spec)["font_size"] + 14 if spec.get("title") else 0)
-    yield from _panels(
-        spec["rows"], margin, top, W - 2 * margin, H - top - margin, gutter, k
+    grid_w, grid_h = W - 2 * margin, H - top - margin
+    heights, squeeze = _row_heights(
+        spec["rows"], grid_w, grid_h, gutter, k, spec.get("caption_style"), spec_dir
     )
+    return margin, top, grid_w, gutter, heights, squeeze
+
+
+def _layout(spec, spec_dir=None):
+    """Yield (row, col, panel, px, py, pw, ph) for every panel of a page spec."""
+    x0, y0, grid_w, gutter, heights, _squeeze = _grid(spec, spec_dir)
+    yield from _panels(spec["rows"], x0, y0, grid_w, heights, gutter)
+
+
+def page_squeeze(spec, spec_dir: Path | None = None) -> float:
+    """How much a page's ``height: auto`` rows have their art scaled to fit:
+    ``1.0`` when they fit as they are, ``0.9`` when each picture loses a tenth
+    of its height to the crop. Lets a caller paginate — start a new page when
+    adding a row would squeeze past what it tolerates. *spec* is a dict or a
+    path (then *spec_dir* defaults to its directory)."""
+    if not isinstance(spec, dict):
+        spec, spec_dir = _load(spec)
+    return _grid(spec, spec_dir)[-1]
 
 
 def build_panel_svg(
@@ -309,7 +386,7 @@ def build_panel_svg(
     """Render a single panel standalone, at `scale` x its full-page pixel size
     (use scale < 1 for a quick low-res review render)."""
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    for ri, ci, panel, _px, _py, pw, ph in _layout(spec):
+    for ri, ci, panel, _px, _py, pw, ph in _layout(spec, spec_dir):
         if ri == row and ci == col:
             # Render the panel body at full page size so absolute-sized elements
             # (bubble text) keep the same proportions as the whole-page render;
@@ -348,7 +425,7 @@ def _scene_canvas(spec, scn, spec_dir) -> tuple[float, float]:
     img = spec.get("image")
     if img is None:
         raise ValueError("a scene spec needs a background: set 'scene:' or 'image:'.")
-    iw, ih = raster.size(raster.resolve(img, spec_dir))
+    _x, _y, iw, ih = raster.region(img, spec_dir)
     scale = spec.get("scale", 1)
     return iw * scale, ih * scale
 
@@ -479,14 +556,6 @@ def _clamp(centre, size, origin, extent):
 
 # `at:` anchors — (column, edge). A column is l / c / r, an edge t / b, or c
 # for "vertically centred, no stacking".
-ANCHORS = {
-    "tl": ("l", "t"), "t": ("c", "t"), "tc": ("c", "t"), "tr": ("r", "t"),
-    "bl": ("l", "b"), "b": ("c", "b"), "bc": ("c", "b"), "br": ("r", "b"),
-    "l": ("l", "c"), "c": ("c", "c"), "r": ("r", "c"), "cl": ("l", "c"),
-    "cr": ("r", "c"),
-}  # fmt: skip
-
-
 def _anchor(at):
     if at is None:
         return "c", "t"
@@ -621,7 +690,7 @@ def _render_panel(
     cst = caption.resolve_style(caption_style)
     box_h = ph
     if cap is not None:
-        band_h = caption.height(cap, cst)
+        band_h = caption.height(cap, cst, pw)
         ph = ph - band_h
         out.append(
             caption.band(cap, cst, px, py + ph, pw, band_h, fr["color"], fr["width"])
@@ -766,7 +835,7 @@ def render_all_panels(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     outs = []
-    for ri, ci, *_ in _layout(spec):
+    for ri, ci, *_ in _layout(spec, spec_dir):
         p = out_dir / f"panel_r{ri}c{ci}{ext}"
         _write(
             build_panel_svg(

@@ -74,6 +74,47 @@ Fixed rows are measured out first; the weighted rows divide the remainder. If
 *every* row is fixed and they do not add up to the page, the leftover space at
 the bottom simply stays blank.
 
+### Rows sized by their pictures
+
+When the panels are [raster images](images.md), `height: auto` sizes the row
+from the art itself: each panel wants its image's aspect ratio at the panel's
+width (after any `crop:`), plus its [caption](captions-frames.md) band, and the
+row is as tall as its hungriest panel.
+
+=== "Render"
+
+    <figure class="cf-demo" markdown>
+    ![One full-width cropped image, then two images squeezed and anchored to the top and bottom](../assets/renders/auto-rows.png)
+    </figure>
+
+=== "Spec"
+
+    ```yaml
+    --8<-- "demos/auto-rows.yaml"
+    ```
+
+If the auto rows do not fit the page, their **art** is scaled down by one
+common factor until they do; caption bands never shrink, so the text stays
+legible and the numbers add up. `fit: cover` then crops the excess from every
+squeezed picture — from the edge the image's `at:` does *not* name, centred by
+default. Squeezing crops a little off each picture; when one picture has empty
+space to spare, trimming it with `crop:` first means the others lose less.
+
+Fixed (`height_mm`) rows are measured out before the auto rows; weighted rows
+share whatever the auto rows leave, which may be nothing. A `height: auto` row
+needs at least one panel with an `image:` to measure.
+
+To paginate a long story, ask how hard a candidate page squeezes before you
+add another row to it:
+
+```python
+from comicforge import page_squeeze
+page_squeeze(spec)   # 1.0 = fits as is; 0.9 = every picture loses 10% of its height
+```
+
+A generator can then keep adding rows while the squeeze stays above whatever
+it tolerates, and start a new page when it would not.
+
 ## Panels
 
 Inside a row, `width` works exactly like `height` does for rows — a relative

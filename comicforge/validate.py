@@ -7,7 +7,10 @@ default-posed actor with no error at all.  ``validate`` walks the whole spec
 without drawing anything, collecting *every* problem at once:
 
 - characters / scenes / pixel sprites that don't exist in the library
-- raster ``image:`` files that are missing, unreadable, or an unsupported type
+- raster ``image:`` files that are missing, unreadable, or an unsupported type;
+  a bad ``fit`` / ``at`` / ``crop`` (or a crop that leaves nothing)
+- a row ``height`` that is neither a weight nor ``auto``, and an ``auto`` row
+  with no image to measure
 - poses an actor asks for that the character doesn't have
 - slot variants that don't exist for the chosen character+pose / scene
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
@@ -45,7 +48,7 @@ _PANEL_KEYS = {
     "pixel",
     "bubbles",
 }
-_IMAGE_KEYS = {"src", "fit"}
+_IMAGE_KEYS = {"src", "fit", "at", "crop"}
 
 
 def _check_keys(keys, known: set[str], label: str, where: str, problems) -> None:
@@ -130,6 +133,14 @@ def _check_image(value, spec_dir, where: str, problems: list[str]) -> None:
         problems.append(
             f"{where}: unknown image fit '{fit}'. Use one of {sorted(raster.FITS)}"
         )
+    for check in (
+        lambda: raster.align(img.get("at")),
+        lambda: raster.crop_margins(img),
+    ):
+        try:
+            check()
+        except ValueError as e:
+            problems.append(f"{where}: {e}")
     try:
         path = raster.resolve(value, spec_dir)
     except ValueError as e:
@@ -148,6 +159,29 @@ def _check_image(value, spec_dir, where: str, problems: list[str]) -> None:
             fh.read(1)
     except OSError as e:
         problems.append(f"{where}: image file is unreadable: {path} ({e.strerror})")
+        return
+    if img.get("crop"):
+        try:
+            raster.region(img, spec_dir)
+        except ValueError as e:
+            problems.append(f"{where}: {e}")
+
+
+def _check_row_height(row: dict, where: str, problems: list[str]) -> None:
+    height = row.get("height", 1)
+    if height == "auto":
+        if "height_mm" not in row and not any(
+            p.get("image") is not None for p in row.get("panels") or []
+        ):
+            problems.append(
+                f"{where}: a `height: auto` row needs a panel with an `image:` "
+                "to take its height from"
+            )
+    elif isinstance(height, bool) or not isinstance(height, int | float) or height < 0:
+        problems.append(
+            f"{where}: row height must be a non-negative weight or 'auto', "
+            f"got {height!r}"
+        )
 
 
 def _check_pixel(spec, pxlib, where: str, problems: list[str]) -> None:
@@ -255,6 +289,7 @@ def validate_spec(
         )
         return problems
     for ri, row in enumerate(rows):
+        _check_row_height(row, f"r{ri}", problems)
         panels = row.get("panels")
         if not panels:
             problems.append(f"r{ri}: row has no 'panels'")

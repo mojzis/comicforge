@@ -93,7 +93,9 @@ pixel_dir:  "../pixel"        # path to pixel-art dir (omit if inline only)
 
 rows:                             # page is a stack of rows…
   - height: 1.0                   # relative row height (default 1), or
-                                  #   height_mm: 60 for a fixed height —
+                                  #   height_mm: 60 for a fixed height, or
+                                  #   height: auto to size it from its images
+                                  #   + captions (squeezed to fit the page) —
                                   #   weighted rows share what is left
     panels:                       # …each row is a left→right list of panels
       - width: 1.0                # relative panel width (default 1)
@@ -159,6 +161,22 @@ image: {src: "01.png", fit: contain}    # or the long form, to pick the fit
   distorts, exactly like a `scene:` background.
 - `fit: contain` scales it to fit *inside* the panel; the leftover strips show
   the panel's `bg:` colour.
+- `crop: {top, bottom, left, right}` trims that many *image pixels* off each
+  edge before fitting — the trimmed image is what `fit`, a scene canvas and a
+  `height: auto` row see.
+- `at: t|b|l|r|tl|tr|bl|br|c` pins the image to that edge, so `fit: cover`
+  crops from the other side (`at: t` keeps heads, loses feet). Default centred.
+- **Making a page of images fit:** give the rows `height: auto`. Each row is as
+  tall as its images want at their panel width plus the caption band; if the
+  rows overflow the page their art (never the captions) is squeezed by one
+  common factor and `cover` crops the excess. Steer what gets lost with `at:`
+  per image, and `crop:` away empty sky/floor first so the squeeze is smaller.
+  Don't compute row `height_mm` from image sizes and caption wraps yourself.
+  To paginate, call `comicforge.page_squeeze(spec)` (1.0 = fits unsqueezed) on
+  a candidate page and break when it drops below what you tolerate.
+- Captions in panels of varying width: `caption_style: {max_chars: auto}` wraps
+  to the band's width; `em` (default 1.0) scales the measure for a narrower
+  (<1) or wider (>1) font than DejaVu Sans.
 - `.png`, `.jpg`/`.jpeg`, `.gif` and `.webp` are supported.
 - The image is **embedded** as a base64 data URI, so an `.svg` or `.pdf` render
   is one self-contained file that still works when moved. That also means the
