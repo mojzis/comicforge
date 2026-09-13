@@ -54,17 +54,25 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
             bubbles:
               - text: "Ahoj!"
                 kind: speech         # speech | thought | shout
-                speaker: tom         # auto-place above this actor + aim the tail
-                                     # at their head; overrides below are optional
+                speaker: tom         # an actor's char, or a `speakers:` name:
+                                     # aligns the bubble + aims the tail there
                 at: tr               # corner/edge to hug: t/b/c x l/r/c (tl, tr,
                                      # bl, br, t, b, l, r, c); overrides x/y
                 x: 0.5  y: 0.2       # explicit centre (else derived from speaker)
                 to: [0.4, 0.5]       # explicit tail target (else the speaker's head)
+                tail_from: b         # where the tail leaves: edge t/b/l/r, a
+                                     # position 0..1 along it, or {edge:, pos:}
+                tail_shape: line     # wedge (default) | line (runs to the speaker)
+            speakers:                # head positions for panels without actors
+              ema: [0.72, 0.3]       # (e.g. raster art), panel fractions
 
 When several bubbles in a panel omit `y`, they stack downward from the top,
 each placed below the measured height of the one before it, so they never
 overlap however long the text is; omit `x` too and each sits above its own
 speaker (or in the middle, when there is no speaker — as on a raster panel).
+On a panel with `speakers:`, a bubble with a `speaker` and no `x`/`y`/`at` is
+placed in reading order instead: on its speaker's side, its top clearly below
+the previous bubble's, keeping clear of speaker points and earlier tails.
 `at:` picks a corner or edge instead; a bubble only stacks under (or, from the
 bottom, over) the earlier bubbles it would actually overlap, so `tl` and `tr`
 sit side by side when they fit and `bl` climbs up from the bottom. Every
@@ -86,8 +94,8 @@ from xml.sax.saxutils import escape
 import cairosvg
 import yaml
 
-from . import caption, pixelart, raster
-from .bubbles import ANCHORS, FONT, INK, bubble, bubble_size, resolve_style
+from . import caption, layout, pixelart, raster
+from .bubbles import FONT, INK, bubble
 from .library import Library
 from .pixelart import PixelLibrary
 from .scene import Scene, SceneLibrary
@@ -373,6 +381,95 @@ def page_squeeze(spec, spec_dir: Path | None = None) -> float:
     return _grid(spec, spec_dir)[-1]
 
 
+def _art_boxes(spec, spec_dir=None, scenes=None):
+    """Yield (where, panel, art width px, art height px) for every panel of a
+    page spec — ``where`` is ``r<R>c<C>`` — or once, as ``scene``, for a
+    standalone scene spec. The art box is the panel less its caption band:
+    what panel fractions are relative to."""
+    cst = spec.get("caption_style")
+    if spec_type(spec) == "scene":
+        w, h = _scene_canvas(spec, scenes or _NullSceneLibrary(), spec_dir)
+        yield "scene", spec, w, h - caption.height(spec.get("caption"), cst, w)
+        return
+    for ri, ci, panel, _px, _py, pw, ph in _layout(spec, spec_dir):
+        art_h = ph - caption.height(panel.get("caption"), cst, pw)
+        yield f"r{ri}c{ci}", panel, pw, art_h
+
+
+def _fractions(xy, w, h) -> list[float]:
+    return [round(xy[0] / w, 4), round(xy[1] / h, 4)]
+
+
+def panel_bubble_layout(panel: dict, width, height, bubble_style=None) -> dict:
+    """Bubble geometry of one *panel* dict whose art box is *width* x *height*
+    px; see :func:`bubble_layout` for the shape of the result."""
+    placements = layout.layout_bubbles(panel, 0, 0, width, height, bubble_style)
+    points = layout.speaker_points(panel)
+
+    def frac(xy):
+        return _fractions(xy, width, height)
+
+    bubbles = []
+    for p in placements:
+        x0, y0, x1, y1 = p.box
+        tail = None
+        if p.tail is not None:
+            tail = {
+                "edge": p.tail.edge,
+                "shape": p.tail.shape,
+                "start": frac(p.tail.start),
+                "tip": frac(p.tail.tip),
+                "target": frac(p.tail.target),
+            }
+        bubbles.append(
+            {
+                "index": p.index,
+                "text": p.text,
+                "kind": p.kind,
+                "speaker": p.speaker,
+                "auto": p.auto,
+                "center": frac(p.centre),
+                "box": frac((x0, y0)) + frac((x1, y1)),
+                "tail": tail,
+            }
+        )
+    px_points = {n: (x * width, y * height) for n, (x, y) in points.items()}
+    return {
+        "width": round(width, 2),
+        "height": round(height, 2),
+        "speakers": {n: [round(x, 4), round(y, 4)] for n, (x, y) in points.items()},
+        "bubbles": bubbles,
+        "warnings": layout.layout_warnings(placements, px_points),
+    }
+
+
+def bubble_layout(spec, row: int = 0, col: int = 0, spec_dir=None) -> dict:
+    """Where every bubble of one panel lands, without rendering.
+
+    *spec* is a dict or a path (then *spec_dir* defaults to its directory); a
+    standalone scene spec is its own single panel and ignores *row* / *col*.
+    Returns a JSON-ready dict, every point in panel fractions of the art box
+    (the panel less its caption band, as in the spec)::
+
+        {"width": 640.0, "height": 412.5,          # art box, page px
+         "speakers": {"ema": [0.7, 0.3]},          # resolved speaker points
+         "bubbles": [{"index": 0, "text": "…", "kind": "speech",
+                      "speaker": "ema", "auto": True,  # reading-order placed
+                      "center": [x, y], "box": [x0, y0, x1, y1],
+                      "tail": {"edge": "b", "shape": "wedge", "start": [x, y],
+                               "tip": [x, y], "target": [x, y]} or None}],
+         "warnings": ["…"]}                        # as `validate` reports them
+    """
+    if not isinstance(spec, dict):
+        spec, spec_dir = _load(spec)
+    sc_path = _resolve_dir(spec.get("scenes_dir"), spec_dir)
+    scenes = SceneLibrary(sc_path) if sc_path is not None else _NullSceneLibrary()
+    for where, panel, w, h in _art_boxes(spec, spec_dir, scenes):
+        if where in ("scene", f"r{row}c{col}"):
+            return panel_bubble_layout(panel, w, h, spec.get("bubble_style"))
+    raise ValueError(f"no panel at row {row}, col {col}")
+
+
 def build_panel_svg(
     spec,
     row,
@@ -538,125 +635,22 @@ def render_character(
 # Panel outline defaults; a page's `frame:` (and a panel's) override any key.
 FRAME: dict[str, Any] = {"width": 3.5, "color": INK, "radius": 10}
 
-# Bubble auto-layout: how far from a panel edge a bubble is kept, and the gap
-# left between two bubbles that stack because neither declared a `y`.
-BUBBLE_INSET = 8.0
-BUBBLE_GAP = 10.0
-
-
-def _clamp(centre, size, origin, extent):
-    """Keep a bubble of *size* inside [origin, origin+extent], centring it when
-    it is too big to fit."""
-    if size + 2 * BUBBLE_INSET >= extent:
-        return origin + extent / 2
-    lo = origin + BUBBLE_INSET + size / 2
-    hi = origin + extent - BUBBLE_INSET - size / 2
-    return min(max(centre, lo), hi)
-
-
-# `at:` anchors — (column, edge). A column is l / c / r, an edge t / b, or c
-# for "vertically centred, no stacking".
-def _anchor(at):
-    if at is None:
-        return "c", "t"
-    if at not in ANCHORS:
-        raise ValueError(f"unknown bubble anchor {at!r}; use one of {sorted(ANCHORS)}")
-    return ANCHORS[at]
-
-
-def _stack(edge, bx, bw, bh, placed, py, ph):
-    """Vertical centre for a bubble of width *bw* / height *bh* centred on
-    *bx*: `t` sits as high as it can, `b` as low as it can, moving past any
-    bubble already *placed* (list of (x0, y0, x1, y1) boxes) that it would
-    overlap; `c` sits in the middle of the panel."""
-    if edge == "c":
-        return py + ph / 2
-    x0, x1 = bx - bw / 2, bx + bw / 2
-    top = py + ph - BUBBLE_INSET - bh if edge == "b" else py + BUBBLE_INSET
-    moved = True
-    while moved:
-        moved = False
-        for bx0, by0, bx1, by1 in placed:
-            if bx0 < x1 and bx1 > x0 and by0 < top + bh and by1 > top:
-                top = by0 - BUBBLE_GAP - bh if edge == "b" else by1 + BUBBLE_GAP
-                moved = True
-    return top + bh / 2
-
-
-def _tail_target(b, actor):
-    """Tail target in panel fractions: explicit `to`, else the speaker's head."""
-    to = b.get("to")
-    if to is None and actor is not None:
-        to = [
-            actor.get("x", 0.5),
-            max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
-        ]
-    return to
-
 
 def _render_bubbles(panel, px, py, pw, ph, bubble_style) -> list[str]:
-    """Draw a panel's bubbles on top of everything else.
-
-    Placement can be derived from a bubble's `speaker`; on a raster panel there
-    are no actors, so a bubble with no `x`/`y` is centred horizontally and
-    stacked below the measured bottom of the previous one. `at:` moves a bubble
-    to a corner or edge instead; each column keeps its own top and bottom
-    stack so bubbles that share a corner never overlap.
-    """
-    actors_by_char = {}
-    for a in panel.get("actors", []):
-        actors_by_char.setdefault(a["char"], a)
-    style = resolve_style(bubble_style)
-
-    def ax(fx):  # panel fraction -> page px
-        return px + fx * pw
-
-    def ay(fy):
-        return py + fy * ph
-
-    out = []
-    placed = []  # (x0, y0, x1, y1) of every bubble drawn so far, for stacking
-    for b in panel.get("bubbles", []):
-        actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
-        to = _tail_target(b, actor)
-        tail = (ax(to[0]), ay(to[1])) if to else None
-        text = b["text"]
-        if b.get("uppercase", style["uppercase"]):
-            text = text.upper()
-        kind = b.get("kind", "speech")
-        max_chars = b.get("max_chars", 22)
-        fs = b.get("fs", style["font_size"])
-        bw, bh = bubble_size(text, kind, max_chars, fs, style=style)
-        col, edge = _anchor(b.get("at"))
-        # centre: explicit x/y, else the anchor column / above the speaker
-        if b.get("x") is not None:
-            bx = ax(b["x"])
-        elif col == "c":
-            bx = ax(actor["x"] if actor and "x" in actor else 0.5)
-        elif col == "l":
-            bx = px + BUBBLE_INSET + bw / 2
-        else:
-            bx = px + pw - BUBBLE_INSET - bw / 2
-        bx = _clamp(bx, bw, px, pw)
-        if b.get("y") is not None:
-            by = ay(b["y"])
-        else:
-            by = _stack(edge, bx, bw, bh, placed, py, ph)
-        by = _clamp(by, bh, py, ph)
-        placed.append((bx - bw / 2, by - bh / 2, bx + bw / 2, by + bh / 2))
-        out.append(
-            bubble(
-                text,
-                bx,
-                by,
-                tail=tail,
-                kind=kind,
-                max_chars=max_chars,
-                fs=fs,
-                style=style,
-            )
+    """Draw a panel's bubbles on top of everything else, where
+    :func:`layout.layout_bubbles` puts them."""
+    return [
+        bubble(
+            p.text,
+            *p.centre,
+            tail=p.tail.target if p.tail else None,
+            kind=p.kind,
+            max_chars=p.max_chars,
+            fs=p.fs,
+            style=p.style,
         )
-    return out
+        for p in layout.layout_bubbles(panel, px, py, pw, ph, bubble_style)
+    ]
 
 
 def _render_panel(

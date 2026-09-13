@@ -47,7 +47,9 @@ needs no Python (see [`reference.md`](reference.md)).
    against the libraries without drawing anything, and lists *all* problems at
    once. Unlike `render`, it flags mis-spelled keys (e.g. `fcae:`, `imge:`) that
    render silently ignores. Exits non-zero when anything is wrong. Works on page
-   and `scene` specs.
+   and `scene` specs. It also prints bubble layout **warnings** (out of reading
+   order, crossing tails, a bubble covering a speaker point) — they don't fail
+   the check unless `--strict`, but fix them before calling a page done.
 4. Render:
    - comic page: `cmf render mystrip.yaml -o out.pdf`
    - single illustration: `cmf scene myscene.yaml -o out.png`
@@ -189,13 +191,27 @@ A standalone illustration can be image-backed too — set `type: scene` with an
 dimensions times `scale:` (default `1`, i.e. one output px per image px).
 
 **Where bubbles land on a raster panel.** There are no actors to anchor to, so
-`speaker:` is meaningless — use `x`/`y`/`to` fractions, or leave them out. A
-bubble with no `y` is placed below the measured bottom of the bubble before it,
-starting near the panel top, so any number of bubbles of any length stack
-without overlapping. A bubble with no `x` is horizontally centred. Every
-bubble — explicit or automatic — is then nudged so it stays inside the panel
-(one wider or taller than the panel is centred instead). A generated spec can
-therefore emit dialogue in order and omit the coordinates entirely.
+mark each speaking head with a panel-level `speakers: {name: [x, y]}` (panel
+fractions) and give bubbles `speaker: name`. The tail then aims at the point
+(unless `to:` is given), and every bubble with a speaker and no `x`/`y`/`at` is
+placed **in reading order**: on its speaker's side, its top clearly below the
+previous bubble's top, clear of speaker points and earlier tails. So a
+right-hand first speaker gets the top right and the reply goes lower left. Emit
+the lines in the order they are spoken and omit coordinates.
+
+Without `speakers:`, a bubble with no `y` is placed below the measured bottom of
+the bubble before it, starting near the panel top, and a bubble with no `x` is
+horizontally centred. Every bubble — explicit or automatic — is then nudged so
+it stays inside the panel (one wider or taller than the panel is centred
+instead).
+
+```yaml
+image: "art/03.png"
+speakers: {ema: [0.72, 0.3], jan: [0.25, 0.42]}
+bubbles:
+  - {text: "Kde jsi byl?", speaker: ema}
+  - {text: "Venku.",       speaker: jan}
+```
 
 ## Standalone illustration (no comic grid)
 
@@ -230,6 +246,7 @@ bubbles: [ ... ]
   kind: speech      # speech | thought | shout
   speaker: tom      # OPTIONAL: auto-place above this actor + aim the tail at
                     #           their head. Prefer this over manual x/y/to.
+                    #           Also names a panel `speakers:` point (actors win).
   at: tr            # OPTIONAL corner/edge to hug: tl t tr l c r bl b br.
                     #           Each column (l/c/r) stacks its own top and
                     #           bottom, so tl + tr sit side by side.
@@ -242,6 +259,11 @@ bubbles: [ ... ]
   fs: 16            # font size px (optional; overrides bubble_style.font_size)
   uppercase: true   # OPTIONAL: force this bubble's text to CAPS
                     #           (overrides bubble_style.uppercase)
+  tail_from: r      # OPTIONAL where the tail leaves: edge t/b/l/r, a position
+                    #           0..1 along the auto edge, or {edge: r, pos: 0.8}
+  tail_shape: line  # OPTIONAL wedge (default) | line: a thin line running to
+                    #           just short of the speaker (thought: dotted)
+  tail_gap: 12      # OPTIONAL px a line tail stops short of its target
 ```
 
 **Page-wide bubble defaults** — set `bubble_style` at the *top level* of a
@@ -257,6 +279,7 @@ bubble_style:
   ink: "#21304a"    # text colour;  font: "DejaVu Sans, sans-serif"
   em: 1.0           # width scale of the text measure — 0.8 for a narrow
                     #   handwriting font, so bubbles hug the words
+  tail_shape: wedge # wedge | line;  tail_gap: 12;  tail_from: (auto)
 rows: [ ... ]
 ```
 
@@ -269,8 +292,13 @@ actor coordinates stay relative to the picture. Page-wide look via
 you how tall a band will be, for sizing rows.
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.
-The tail is a slim line dropping from the bubble underside; its tip is capped
-short so it never overlaps the figure.
+The tail is a slim wedge dropping from the bubble underside; its tip is capped
+short so it never overlaps the figure (`tail_shape: line` runs a thin line to
+just short of the speaker instead).
+
+`cmf validate` also prints layout **warnings** (exit 0 unless `--strict`): a
+bubble out of reading order, crossing tails, a bubble covering a speaker point.
+When one shows up, nudge that bubble with `at:` or `x`/`y`.
 
 ### pixel art
 

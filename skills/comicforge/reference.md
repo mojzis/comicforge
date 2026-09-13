@@ -443,14 +443,18 @@ renders a default-faced, default-posed actor with no error. `validate` flags:
   an `image:` with no `src`, an unknown image key, an unknown `fit` or `at`,
   a bad `crop` (unknown side, negative, or trimming the whole image); a row
   `height` that is neither a weight nor `auto`, an `auto` row with no image
-- bubble `speaker` naming no actor in the panel; unknown bubble `kind`
+- bubble `speaker` naming neither an actor nor a `speakers:` point in the panel;
+  a malformed `speakers:` point; unknown bubble `kind`, `tail_shape` or
+  `tail_from`
 - structural holes (a page with no `rows`, a row with no `panels`, a bubble with
   no `text`, a `scene` spec with neither `scene:` nor `image:`); an unknown
   `type:`, or a `type:` that contradicts the structure (a `scene` spec carrying
   `rows`)
 
 Exits `0` when the spec is sound, `1` (with a bulleted problem list) otherwise —
-so it works in a pre-render check or CI.
+so it works in a pre-render check or CI. It also lays out the bubbles and
+prints **warnings** — a bubble out of reading order, tails that cross, a bubble
+covering a speaker point — which only fail the check with `--strict`.
 
 ```bash
 cmf validate examples/pes/pages/slepice.yaml   # -> "...: ok"
@@ -604,7 +608,8 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   corner radius also clips the art),
   `bubble_style` (page-wide bubble look: `font`, `font_size`, `pad`, `radius`,
   `stroke`, `stroke_width`, `fill`, `ink`, `uppercase`, `em` — width scale of
-  the text measure for narrower fonts)
+  the text measure for narrower fonts; `tail_shape` `wedge`/`line`, `tail_gap`,
+  `tail_from`)
 - **Rows and panels**: `rows[].height` (relative weight) or `rows[].height_mm`
   (fixed; weighted rows share the rest, all-fixed leaves the bottom blank) or
   `rows[].height: auto` (tallest of each panel's image aspect at its width,
@@ -619,8 +624,9 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars` (a count, or `auto` to
   wrap to the band's width), `em` (width scale of the `auto` measure),
   `align`, `rule`, `uppercase`),
-  `scene`, `image`, `actors`, `pixel`, `bubbles` — `validate` flags any other
-  panel key as a typo
+  `scene`, `image`, `actors`, `pixel`, `bubbles`, `speakers` (`{name: [x, y]}`
+  head points in panel fractions that bubbles' `speaker:` resolves to when no
+  actor has that char) — `validate` flags any other panel key as a typo
 - **Image keys**: `image: path.png` or `image: {src:, fit:, at:, crop:}` with
   `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
   (fit inside + letterbox); `at:` (`t`, `b`, `l`, `r`, `tl`, `tr`, `bl`, `br`,
@@ -640,10 +646,15 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   their `speaker`). `at` hugs a corner or edge instead — `tl`, `t`, `tr`, `l`,
   `c`, `r`, `bl`, `b`, `br` — and each column keeps its own top and bottom
   stack, so `tl` + `tr` sit side by side and `bl` climbs up from the bottom.
-  `to: [x, y]` (panel fractions) aims a tail without a speaker. Every bubble is
-  kept inside the panel — so a generated spec over raster panels, which has no
-  `speaker` to anchor to, can omit coordinates entirely, or place each with `at`
-  to keep it off the faces
+  `to: [x, y]` (panel fractions) aims a tail without a speaker. `tail_from`
+  (`t`/`b`/`l`/`r`, a position 0..1, or `{edge, pos}`) picks where the tail
+  leaves, `tail_shape: line` draws a line to the speaker. On a panel with
+  `speakers:`, bubbles with a speaker and no `x`/`y`/`at` are placed in
+  reading order (speaker's side, each top clearly below the previous one's,
+  clear of heads and earlier tails). Every bubble is
+  kept inside the panel — so a generated spec over raster panels marks the heads
+  in `speakers:`, emits the lines in spoken order with a `speaker` each, and
+  omits coordinates; reach for `at` or `x`/`y` only when `validate` warns
 - **Pixel keys**: `art` (library name) or `grid`+`palette`, plus `x`/`y`/`scale`
 
 ---
@@ -658,6 +669,10 @@ render_spec("examples/pes/pages/slepice.yaml", "slepice.png")
 
 # Render a standalone scene
 render_scene("examples/pes/pages/dvur-scene.yaml", "dvur.png")
+
+# Bubble boxes + tail endpoints of one panel, in panel fractions, no render
+from comicforge import bubble_layout
+bubble_layout("examples/pes/pages/slepice.yaml", row=0, col=1)["bubbles"]
 
 # Load a spec dict for inspection
 spec = load_spec("examples/pes/pages/slepice.yaml")

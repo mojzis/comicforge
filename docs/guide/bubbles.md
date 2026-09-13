@@ -35,7 +35,9 @@ unnecessary.
 | `shout` | A spiky burst |
 
 The tail drops from the bubble's underside toward its target, and its tip is cut
-short so it never lands on the figure's face.
+short so it never lands on the figure's face. [`tail_shape: line`](#tail_shape-a-line-to-the-speaker)
+draws a line all the way instead, and [`tail_from`](#tail_from-where-the-tail-leaves)
+picks where it leaves the bubble.
 
 ## Placing a bubble
 
@@ -43,7 +45,9 @@ Four things can decide where a bubble goes. In order of precedence:
 
 1. **`x` / `y`** — explicit panel fractions for its centre.
 2. **`at`** — a corner or edge to hug.
-3. **`speaker`** — line it up over that actor.
+3. **`speaker`** — line it up over that actor, or, on a panel with
+   [`speakers:`](#speakers-speaker-points-without-actors), place it in
+   reading order on that speaker's side.
 4. **Nothing** — centred horizontally, stacked from the top.
 
 ### `speaker:` — the usual case
@@ -58,7 +62,57 @@ actors:  [{char: tom, face: happy, x: 0.35, y: 0.7, scale: 0.8}]
 bubbles: [{text: "Ahoj!", speaker: tom}]
 ```
 
-A `speaker` naming no actor in the panel is caught by `cmf validate`.
+A `speaker` naming neither an actor nor a `speakers:` point in the panel is
+caught by `cmf validate`.
+
+### `speakers:` — speaker points without actors
+
+A panel over raster art has no actors for `speaker:` to find. Give the panel
+the head of each speaking figure instead, in panel fractions:
+
+```yaml
+image: "art/03.png"
+speakers:
+  ema: [0.72, 0.30]
+  jan: [0.25, 0.42]
+bubbles:
+  - {text: "Kde jsi byl?", speaker: ema}
+  - {text: "Venku.",       speaker: jan}
+```
+
+`speaker: ema` now resolves to that point: the tail aims there (unless the
+bubble has a `to:`). An actor with the same `char` wins over a point of the same
+name, so the two can share a panel.
+
+On a panel with `speakers:`, every bubble that has a `speaker` and none of
+`x`, `y` or `at` is placed **in reading order**:
+
+- it goes on its speaker's side of the panel — over the speaker, or hugging
+  that side's edge;
+- its top sits clearly below the previous bubble's top — at least half that
+  bubble's height lower — so the panel reads top to bottom, then left to right;
+- among the spots that satisfy that, it takes one that keeps clear of every
+  speaker point and does not cross an earlier bubble's tail, staying as close
+  to its speaker and as high up as it can.
+
+So a right-hand speaker who talks first gets the top right, and the reply goes
+lower left.
+
+=== "Render"
+
+    <figure class="cf-demo" markdown>
+    ![Four raster panels with bubbles placed from speaker points: reading order, a line tail, a pinned tail start, a dotted thought line](../assets/renders/speakers.png)
+    </figure>
+
+=== "Spec"
+
+    ```yaml
+    --8<-- "demos/speakers.yaml"
+    ```
+
+Bubbles with `x`/`y` or `at` keep their manual place — and still count as the
+"previous bubble" for the next one. Panels without `speakers:` lay out exactly
+as before.
 
 ### Stacking — no coordinates at all
 
@@ -128,6 +182,56 @@ Use `to` when the tail should point at something that is not an actor — an
 off-panel voice, a radio, a hole in the ground. With a `speaker` and no `to`,
 the head position is worked out for you.
 
+### `tail_from:` — where the tail leaves
+
+By default the tail leaves the edge facing its target, slid toward the target
+but kept within the middle of that edge. `tail_from` overrides either half:
+
+```yaml
+- {text: "Kvok!", speaker: hen, at: tl, tail_from: r}                  # right edge, auto spot
+- {text: "Kvok!", speaker: hen, at: tl, tail_from: 0.8}                # auto edge, 80% along it
+- {text: "Kvok!", speaker: hen, at: tl, tail_from: {edge: r, pos: 0.8}} # both
+```
+
+`edge` is `t`, `b`, `l` or `r`; `pos` runs from `0` (left end of a top/bottom
+edge, top end of a side) to `1`. Set it on a bubble, or page-wide in
+`bubble_style`.
+
+### `tail_shape:` — a line to the speaker
+
+```yaml
+bubble_style: {tail_shape: line}    # every bubble on the page
+# …or per bubble:
+- {text: "Mně to nevadí.", speaker: hen, tail_shape: line}
+```
+
+| `tail_shape` | Drawn as |
+|---|---|
+| `wedge` | The default slim tail, cut short of the figure |
+| `line` | A thin ink line from the bubble to just short of the speaker, on a paper-coloured halo so it stays legible over busy art. A `thought` gets a trail of small dots instead |
+
+`tail_gap` (default `12` px) is how far short of the target a line stops.
+
+## Layout warnings
+
+`cmf validate` lays out every panel's bubbles and warns — without failing —
+about things that render but read badly:
+
+- a bubble **out of reading order**: its top above the previous bubble's, or
+  level with it but further left;
+- two **tails that cross** (the lines from each bubble to its target);
+- a bubble **covering a speaker point** — an actor's head or a `speakers:`
+  point.
+
+```
+pages/strip.yaml: ok, 1 warning(s)
+  - warning: r0c1: bubble 1 "Venku." sits above bubble 0 "Kde jsi byl?" but comes after it (out of reading order)
+```
+
+Pass `--strict` to make warnings fail the check. The same geometry is
+available from Python, without rendering, via
+[`bubble_layout`](../reference/python-api.md#bubble-layout).
+
 ## Text and wrapping
 
 | Key | Default | Meaning |
@@ -136,6 +240,7 @@ the head position is worked out for you.
 | `max_chars` | `22` | Wrap width, in characters |
 | `fs` | from `bubble_style` | Font size in px for this bubble |
 | `uppercase` | from `bubble_style` | Force this bubble's text to caps |
+| `tail_shape` / `tail_gap` / `tail_from` | from `bubble_style` | This bubble's tail |
 
 Wrapping breaks on spaces at `max_chars`, and the outline is sized from an
 *estimate* of the rendered width — capitals are measured wider than lowercase,
@@ -172,6 +277,9 @@ page. Per-bubble keys still win.
 | `ink` | `#21304a` | Text colour |
 | `uppercase` | `false` | Render all bubble text in caps |
 | `em` | `1.0` | Width scale of the text measure |
+| `tail_shape` | `wedge` | `wedge` or `line` |
+| `tail_gap` | `12` | Px a `line` tail stops short of its target |
+| `tail_from` | auto | Where tails leave: edge, position, or `{edge, pos}` |
 
 `uppercase: true` is classic comic lettering, and it costs nothing — the
 measurement accounts for the wider glyphs.
@@ -198,4 +306,11 @@ bubbles:
 # an off-panel voice
 bubbles:
   - {text: "Večeře!", kind: speech, at: tr, to: [1.0, 0.5]}
+
+# raster art: mark the heads, let the layout do the rest
+image: "art/03.png"
+speakers: {ema: [0.72, 0.3], jan: [0.25, 0.42]}
+bubbles:
+  - {text: "Kde jsi byl?", speaker: ema}
+  - {text: "Venku.",       speaker: jan}
 ```

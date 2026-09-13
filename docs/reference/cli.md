@@ -183,7 +183,7 @@ costs far fewer tokens.
 ## `validate`
 
 ```bash
-cmf validate <spec.yaml> [--library <dir>] [--scenes <dir>] [--pixel-dir <dir>]
+cmf validate <spec.yaml> [--library <dir>] [--scenes <dir>] [--pixel-dir <dir>] [--strict]
 ```
 
 Statically checks a page or scene spec against the libraries it points at, and
@@ -201,7 +201,9 @@ complaint. `validate` flags:
 - panel keys the renderer does not know, such as `imge:` for `image:`
 - raster `image:` files that are missing, unreadable or of an unsupported type;
   an `image:` with no `src`; an unknown image key; an unknown `fit`
-- a bubble `speaker` naming no actor in the panel; an unknown bubble `kind`
+- a bubble `speaker` naming neither an actor nor a `speakers:` point in the
+  panel; a malformed `speakers:` point; an unknown bubble `kind`, `tail_shape`
+  or `tail_from`
 - structural holes — a page with no `rows`, a row with no `panels`, a bubble
   with no `text`, a scene spec with neither `scene:` nor `image:`
 - an unknown `type:`, or a `type:` that contradicts the structure (a `scene`
@@ -209,6 +211,12 @@ complaint. `validate` flags:
 
 Exit code `0` when the spec is sound, `1` with a bulleted list otherwise — so it
 drops straight into a pre-render check or CI.
+
+It also lays out every panel's bubbles and prints **warnings** for things that
+render but read badly: a bubble out of reading order, tails that cross, a
+bubble covering a speaker point (see
+[layout warnings](../guide/bubbles.md#layout-warnings)). Warnings do not change
+the exit code unless you pass `--strict`.
 
 ```bash
 cmf validate pages/slepice.yaml

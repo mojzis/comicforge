@@ -15,21 +15,28 @@ without drawing anything, collecting *every* problem at once:
 - slot variants that don't exist for the chosen character+pose / scene
 - actor / scene keys that aren't reserved and aren't a real slot (likely typos)
 - panel keys the renderer doesn't know (``imge:`` for ``image:``, say)
-- bubble ``speaker`` that names no actor in the panel, unknown bubble ``kind``
-  or ``at`` anchor
+- bubble ``speaker`` that names neither an actor nor a ``speakers:`` point in
+  the panel, a malformed ``speakers:`` point, unknown bubble ``kind``, ``at``
+  anchor, ``tail_shape`` or ``tail_from``
 - structural holes (no ``rows``, a row without ``panels``, a bubble with no text)
 
 It returns a list of human-readable problem strings (empty == the spec is sound).
+
+:func:`check_spec` also lays out every panel's bubbles and returns *warnings*:
+things that render fine but read badly — a bubble out of reading order, tails
+that cross, a bubble covering a speaker point.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import caption, raster
+from . import bubbles, caption, layout, raster
+from .bubbles import ANCHORS
 from .library import Library
 from .pixelart import PixelLibrary
-from .render import ANCHORS, _as_list, _build_libs, load_spec, spec_type
+from .render import _art_boxes, _as_list, _build_libs, load_spec, spec_type
 from .scene import SceneLibrary
 
 # keys on an actor / scene dict that are positioning or identity, not slots
@@ -47,6 +54,7 @@ _PANEL_KEYS = {
     "actors",
     "pixel",
     "bubbles",
+    "speakers",
 }
 _IMAGE_KEYS = {"src", "fit", "at", "crop"}
 
@@ -200,8 +208,33 @@ def _check_pixel(spec, pxlib, where: str, problems: list[str]) -> None:
         problems.append(f"{where}: pixel entry has neither 'art' nor 'grid'")
 
 
+def _check_speakers(panel: dict, where: str, problems: list[str]) -> set[str]:
+    """Flag malformed ``speakers:`` points; return the names given."""
+    speakers = panel.get("speakers")
+    if speakers is None:
+        return set()
+    if not isinstance(speakers, dict):
+        problems.append(
+            f"{where}: speakers must map a name to [x, y], got {speakers!r}"
+        )
+        return set()
+    for name, xy in speakers.items():
+        ok = (
+            isinstance(xy, list | tuple)
+            and len(xy) == len("xy")
+            and all(isinstance(v, int | float) and not isinstance(v, bool) for v in xy)
+        )
+        if not ok:
+            problems.append(
+                f"{where}: speaker '{name}' needs a point [x, y] in panel "
+                f"fractions, got {xy!r}"
+            )
+    return {str(name) for name in speakers}
+
+
 def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
-    speakers = {a.get("char") for a in panel.get("actors", [])}
+    actors = {a.get("char") for a in panel.get("actors", [])} - {None}
+    speakers = actors | _check_speakers(panel, where, problems)
     for b in panel.get("bubbles", []):
         if not b.get("text"):
             problems.append(f"{where}: bubble with no 'text'")
@@ -215,12 +248,47 @@ def _check_bubbles(panel: dict, where: str, problems: list[str]) -> None:
             problems.append(
                 f"{where}: bubble anchor '{at}' unknown. Have: {sorted(ANCHORS)}"
             )
+        _check_tail_keys(b, where, problems)
         speaker = b.get("speaker")
         if speaker is not None and speaker not in speakers:
             problems.append(
-                f"{where}: bubble speaker '{speaker}' is not an actor here. "
-                f"Actors: {sorted(s for s in speakers if s)}"
+                f"{where}: bubble speaker '{speaker}' is neither an actor nor a "
+                f"`speakers:` point here. Have: {sorted(speakers)}"
             )
+
+
+def _check_tail_keys(style: dict, where: str, problems: list[str]) -> None:
+    """``tail_shape`` / ``tail_from`` on a bubble or the page's ``bubble_style``."""
+    shape = style.get("tail_shape")
+    if shape is not None and shape not in bubbles.TAIL_SHAPES:
+        problems.append(
+            f"{where}: tail_shape '{shape}' unknown. Have: {list(bubbles.TAIL_SHAPES)}"
+        )
+    try:
+        bubbles.tail_from(style.get("tail_from"))
+    except ValueError as e:
+        problems.append(f"{where}: {e}")
+
+
+def _layout_warnings(spec, spec_dir, scenes) -> list[str]:
+    """Bubble layout warnings for every panel; nothing for a spec too broken
+    to lay out (its problems are reported already)."""
+    out = []
+    try:
+        for where, panel, w, h in _art_boxes(spec, spec_dir, scenes):
+            placements = layout.layout_bubbles(
+                panel, 0, 0, w, h, spec.get("bubble_style")
+            )
+            points = {
+                name: (x * w, y * h)
+                for name, (x, y) in layout.speaker_points(panel).items()
+            }
+            out.extend(
+                f"{where}: {msg}" for msg in layout.layout_warnings(placements, points)
+            )
+    except (ValueError, KeyError, TypeError, IndexError, OSError):
+        return out
+    return out
 
 
 def _check_panel(panel, libs, where, problems, spec_dir=None) -> None:
@@ -240,6 +308,15 @@ def _check_panel(panel, libs, where, problems, spec_dir=None) -> None:
     _check_bubbles(panel, where, problems)
 
 
+@dataclass
+class Report:
+    """What :func:`check_spec` found: *problems* break or silently change the
+    render; *warnings* render fine but read badly."""
+
+    problems: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
 def validate_spec(
     spec,
     library: Library | None = None,
@@ -251,12 +328,30 @@ def validate_spec(
     A page spec has ``rows`` of ``panels``; a standalone scene spec has a
     top-level ``scene`` and acts as a single panel. Both are validated.
     """
+    return check_spec(spec, library, scenes, pixel_library).problems
+
+
+def check_spec(
+    spec,
+    library: Library | None = None,
+    scenes: SceneLibrary | None = None,
+    pixel_library: PixelLibrary | None = None,
+) -> Report:
+    """Every problem in *spec* (path or dict), plus bubble layout warnings."""
     spec_dir = None
     if not isinstance(spec, dict):
         spec_path = Path(spec)
         spec_dir = spec_path.parent.resolve()
         spec = load_spec(spec_path)
 
+    report = Report(problems=_problems(spec, spec_dir, library, scenes, pixel_library))
+    if not report.problems:
+        _lib, scn, _px = _build_libs(spec, spec_dir, library, scenes, pixel_library)
+        report.warnings = _layout_warnings(spec, spec_dir, scn)
+    return report
+
+
+def _problems(spec, spec_dir, library, scenes, pixel_library) -> list[str]:
     problems: list[str] = []
     try:
         libs = _build_libs(spec, spec_dir, library, scenes, pixel_library)
@@ -278,6 +373,7 @@ def validate_spec(
             problems.append(
                 "scene spec must not have 'rows' (use a 'page' spec for a grid)"
             )
+        _check_tail_keys(spec.get("bubble_style") or {}, "bubble_style", problems)
         _check_panel(spec, libs, "scene", problems, spec_dir)
         return problems
 
@@ -288,6 +384,7 @@ def validate_spec(
             + (" (did you mean type: scene?)" if "scene" in spec else "")
         )
         return problems
+    _check_tail_keys(spec.get("bubble_style") or {}, "bubble_style", problems)
     for ri, row in enumerate(rows):
         _check_row_height(row, f"r{ri}", problems)
         panels = row.get("panels")

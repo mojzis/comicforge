@@ -69,6 +69,7 @@ fixed and they do not fill the page, the remainder stays blank.
 | `actors` | — | List of characters to place |
 | `pixel` | — | List of pixel sprites |
 | `bubbles` | — | List of bubbles |
+| `speakers` | — | `{name: [x, y]}` — speaker head points in panel fractions, for bubbles' `speaker:` |
 
 Any other key is a typo. `validate` flags it; `render` ignores it silently.
 
@@ -109,7 +110,7 @@ Drawn in list order — later actors cover earlier ones.
 |---|---|---|
 | `text` | **required** | The line |
 | `kind` | `speech` | `speech`, `thought` or `shout` |
-| `speaker` | — | Character name of an actor in this panel: aligns the bubble and aims the tail at their head |
+| `speaker` | — | An actor's `char` in this panel, or a `speakers:` name (actors win): aligns the bubble and aims the tail at the head |
 | `at` | — | Corner or edge: `tl` `t` `tr` `l` `c` `r` `bl` `b` `br` |
 | `x` | speaker's `x`, else centre | Centre, fraction of panel width |
 | `y` | stacked below the previous bubble | Centre, fraction of panel height |
@@ -117,10 +118,18 @@ Drawn in list order — later actors cover earlier ones.
 | `max_chars` | `22` | Wrap width in characters |
 | `fs` | `bubble_style.font_size` | Font size in px for this bubble |
 | `uppercase` | `bubble_style.uppercase` | Force this bubble to caps |
+| `tail_shape` | `bubble_style.tail_shape` | `wedge` or `line` |
+| `tail_gap` | `bubble_style.tail_gap` | Px a `line` tail stops short of its target |
+| `tail_from` | `bubble_style.tail_from` | Where the tail leaves: `t`/`b`/`l`/`r`, a position `0..1` along the auto edge, or `{edge, pos}` |
 
 Precedence for placement: explicit `x`/`y` → `at` → `speaker` → stack from the
 top. Every bubble is finally clamped to stay inside the panel; one too large to
 fit is centred.
+
+On a panel with `speakers:`, a bubble with a `speaker` and no `x`/`y`/`at` is
+placed in reading order: on its speaker's side, its top at least half the
+previous bubble's height below that bubble's top, clear of speaker points and
+earlier tails. See [bubbles](../guide/bubbles.md#speakers-speaker-points-without-actors).
 
 `at` columns (`l`/`c`/`r`) each keep their own top and bottom stack, so `tl` and
 `tr` sit side by side and `bl` climbs up from the bottom. `c` centres and does
@@ -142,6 +151,9 @@ Page-wide; every per-bubble key above overrides it.
 | `ink` | `#21304a` | Text colour |
 | `uppercase` | `false` | Render all bubble text in caps |
 | `em` | `1.0` | Width scale of the text measure — lower for a narrow font |
+| `tail_shape` | `wedge` | `wedge` (short slim tail) or `line` (thin line to just short of the speaker) |
+| `tail_gap` | `12` | Px a `line` tail stops short of its target |
+| `tail_from` | auto | Where tails leave the bubble — see `bubbles[]` |
 
 ## `caption` and `caption_style`
 

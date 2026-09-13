@@ -52,7 +52,9 @@ honest:
    `pixel_dir:` relative to the spec file.
 3. **Validate before rendering.** `cmf validate pages/strip.yaml` catches the
    silent failures — a mistyped slot, an unknown panel key, a `speaker` naming
-   nobody — that would otherwise render as a plausible-looking wrong panel.
+   nobody — that would otherwise render as a plausible-looking wrong panel. Its
+   bubble layout warnings (reading order, crossing tails, a covered head) are
+   worth clearing too.
 4. **Render, then look.** `cmf render` for the page, or `cmf panel --row --col`
    for the one panel being worked on.
 5. **Adjust `x` / `y` / `scale` / `to` and repeat.**
@@ -75,8 +77,11 @@ Habits from other tools that do not apply here:
   [Reference images](art/inspire.md).
 - **Omit bubble coordinates when in doubt.** Bubbles stack by measured height
   and are clamped inside the panel, so leaving `x` and `y` out is more reliable
-  than guessing them — especially over raster panels, where there is no
-  `speaker` to anchor to.
+  than guessing them. Over raster panels, which have no actors, mark each
+  speaking head in the panel's
+  [`speakers:`](guide/bubbles.md#speakers-speaker-points-without-actors) and
+  give every bubble a `speaker`: the bubbles are then placed in reading order
+  with tails aimed at the heads.
 - **The engine ships no art.** There is no default character to fall back on. A
   new project starts empty and every asset directory must be named.
 

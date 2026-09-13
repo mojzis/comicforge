@@ -30,7 +30,7 @@ from .render import (
     render_spec,
 )
 from .scene import SceneLibrary
-from .validate import validate_spec
+from .validate import check_spec
 
 # Where renders land when -o is omitted. Gitignored; filenames carry a timestamp
 # so successive renders accumulate and you can watch a page/character evolve.
@@ -129,6 +129,11 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
         default=None,
         dest="pixel_dir",
         help="pixel-art sprite library directory",
+    )
+    v.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail on bubble layout warnings too, not just problems",
     )
 
     s = sub.add_parser("scene", help="render a standalone scene illustration")
@@ -297,14 +302,17 @@ def main(argv=None):  # noqa: PLR0912, PLR0915 — flat CLI dispatcher; clearer 
         lib = Library(args.library) if args.library else None
         scenes = SceneLibrary(args.scenes) if args.scenes else None
         px = PixelLibrary(args.pixel_dir) if args.pixel_dir else None
-        problems = validate_spec(
-            args.spec, library=lib, scenes=scenes, pixel_library=px
-        )
-        if problems:
-            rich_print(f"{args.spec}: {len(problems)} problem(s)")
-            for msg in problems:
+        report = check_spec(args.spec, library=lib, scenes=scenes, pixel_library=px)
+        if report.problems:
+            rich_print(f"{args.spec}: {len(report.problems)} problem(s)")
+            for msg in report.problems:
                 rich_print(f"  - {msg}")
             return 1
+        if report.warnings:
+            rich_print(f"{args.spec}: ok, {len(report.warnings)} warning(s)")
+            for msg in report.warnings:
+                rich_print(f"  - warning: {msg}")
+            return 1 if args.strict else 0
         rich_print(f"{args.spec}: ok")
         return 0
     elif args.cmd == "panel":

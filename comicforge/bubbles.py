@@ -7,6 +7,7 @@ All coordinates here are absolute page px. A bubble is positioned by its centre
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
 FONT = "DejaVu Sans, Helvetica, Arial, sans-serif"
@@ -35,7 +36,13 @@ DEFAULT_STYLE = {
     "ink": INK,  # text colour
     "uppercase": False,
     "em": 1.0,  # width scale for the text measure: <1 for a narrower font
+    "tail_shape": "wedge",  # wedge (a slim, short tail) | line (runs to the speaker)
+    "tail_gap": 12,  # `line` only: px left between the line's end and its target
+    "tail_from": None,  # where the tail leaves the bubble, see `tail_from`
 }
+
+TAIL_SHAPES = ("wedge", "line")
+TAIL_EDGES = ("t", "b", "l", "r")
 
 
 def merge_style(defaults: dict, *layers) -> dict:
@@ -137,6 +144,105 @@ def _paint(st, scale=1.0):
     )
 
 
+def body_size(text, max_chars=22, fs=None, pad=None, style=None):
+    """(width, height) of the text body a bubble's tail is measured against."""
+    st = resolve_style(style)
+    fs = st["font_size"] if fs is None else fs
+    pad = st["pad"] if pad is None else pad
+    _lines, _lh, w, h = _box(text, max_chars, fs, pad, st["em"])
+    return w, h
+
+
+def tail_from(value) -> tuple[str | None, float | None]:
+    """Normalise a ``tail_from`` value to ``(edge, pos)``.
+
+    ``b`` picks an edge (``t``/``b``/``l``/``r``) and lets the tail slide along
+    it toward the target; ``0.3`` keeps the automatic edge and fixes the spot
+    along it (0 = left / top end, 1 = right / bottom end); ``{edge: r, pos:
+    0.4}`` fixes both. ``None`` is the automatic choice for both.
+    """
+    if value is None:
+        return None, None
+    if isinstance(value, str):
+        edge, pos = value, None
+    elif isinstance(value, dict):
+        unknown = set(value) - {"edge", "pos"}
+        if unknown:
+            raise ValueError(
+                f"unknown tail_from key(s) {sorted(unknown)}; use 'edge' and 'pos'"
+            )
+        edge, pos = value.get("edge"), value.get("pos")
+    elif isinstance(value, int | float) and not isinstance(value, bool):
+        edge, pos = None, value
+    else:
+        raise ValueError(  # noqa: TRY004 - a bad spec value, like every other
+            f"tail_from must be an edge, a position 0..1 or {{edge, pos}}, "
+            f"got {value!r}"
+        )
+    if edge is not None and edge not in TAIL_EDGES:
+        raise ValueError(f"unknown tail edge {edge!r}; use one of {list(TAIL_EDGES)}")
+    if pos is not None and (
+        isinstance(pos, bool) or not isinstance(pos, int | float) or not 0 <= pos <= 1
+    ):
+        raise ValueError(f"tail_from pos must be a number from 0 to 1, got {pos!r}")
+    return edge, pos
+
+
+@dataclass(frozen=True)
+class Tail:
+    """Where a tail sits: it leaves the bubble's *edge* at *start* and is drawn
+    toward *target*, ending at *tip*. All page px."""
+
+    edge: str
+    start: tuple[float, float]
+    tip: tuple[float, float]
+    target: tuple[float, float]
+    shape: str = "wedge"
+
+
+def tail_geometry(bx, by, w, h, target, style=None) -> Tail:
+    """Geometry of the tail of a *w* x *h* body centred on (bx, by).
+
+    By default it leaves the edge facing the target — a side edge when the
+    target lies further out beside the bubble than above or below it (relative
+    to the body's own size), else top/bottom — nudged toward the target but
+    kept within the middle of that edge. ``tail_from`` in *style* pins the
+    edge and/or the spot along it. A ``wedge`` stops well short of the target
+    so the tip never reaches the figure; a ``line`` runs on to ``tail_gap`` px
+    before it.
+    """
+    st = resolve_style(style)
+    tx, ty = target
+    edge, pos = tail_from(st["tail_from"])
+    if edge is None:
+        over_x = (abs(tx - bx) - w / 2) / (w / 2)
+        over_y = (abs(ty - by) - h / 2) / (h / 2)
+        if over_x > 0 and over_x > over_y:
+            edge = "l" if tx < bx else "r"
+        else:
+            edge = "t" if ty < by - h / 2 else "b"
+    if edge in ("l", "r"):
+        ex = bx - w / 2 if edge == "l" else bx + w / 2
+        if pos is None:
+            ey = min(max(ty, by - h * 0.3), by + h * 0.3)
+        else:
+            ey = by - h / 2 + pos * h
+    else:
+        if pos is None:
+            ex = min(max(tx, bx - w * 0.3), bx + w * 0.3)
+        else:
+            ex = bx - w / 2 + pos * w
+        ey = by - h / 2 if edge == "t" else by + h / 2
+    dx, dy = tx - ex, ty - ey
+    dist = math.hypot(dx, dy) or 1.0
+    shape = st["tail_shape"]
+    # a wedge's capped length keeps the tip off the figure
+    line = shape == "line"
+    reach = max(dist - st["tail_gap"], 0.0) if line else min(dist * 0.45, 46)
+    tip = (ex + dx / dist * reach, ey + dy / dist * reach)
+    return Tail(edge, (ex, ey), tip, (tx, ty), shape)
+
+
 def bubble(
     text, bx, by, tail=None, kind="speech", max_chars=22, fs=None, pad=None, style=None
 ):
@@ -161,35 +267,23 @@ def bubble(
             f'rx="{min(st["radius"], h / 2):.1f}" {_paint(st)}/>'
         )
 
-    tail_svg = ""
+    under = tail_svg = ""
     if tail is not None:
-        tail_svg = _tail(bx, by, w, h, tail, kind, st)
+        geom = tail_geometry(bx, by, w, h, tail, st)
+        if geom.shape == "line":
+            under, tail_svg = _line_tail(geom, kind, st)
+        else:
+            tail_svg = _tail(geom, kind, st)
 
-    return f"<g>{body}{tail_svg}{txt}</g>"
+    return f"<g>{under}{body}{tail_svg}{txt}</g>"
 
 
-def _tail(bx, by, w, h, tail, kind, st):
-    """A slim tail from the bubble's underside (or its top, when the speaker is
-    above it) pointing toward the target — but stopping well short of it, so
-    the tip never reaches the figure."""
-    tx, ty = tail
-    # exit from the edge facing the target: a side edge when the target lies
-    # further out beside the bubble than above or below it (relative to the
-    # body's own size), else top/bottom — nudged toward the target but kept
-    # within the middle of that edge
-    over_x = (abs(tx - bx) - w / 2) / (w / 2)
-    over_y = (abs(ty - by) - h / 2) / (h / 2)
-    if over_x > 0 and over_x > over_y:
-        ex = bx - w / 2 if tx < bx else bx + w / 2
-        ey = min(max(ty, by - h * 0.3), by + h * 0.3)
-    else:
-        ex = min(max(tx, bx - w * 0.3), bx + w * 0.3)
-        ey = by - h / 2 if ty < by - h / 2 else by + h / 2
-    dx, dy = tx - ex, ty - ey
-    dist = math.hypot(dx, dy) or 1.0
-    reach = min(dist * 0.45, 46)  # capped length keeps the tip off the figure
-    ux, uy = dx / dist, dy / dist
-    tipx, tipy = ex + ux * reach, ey + uy * reach
+def _tail(geom: Tail, kind, st):
+    """A slim tail from the bubble's edge toward the target, stopping short."""
+    ex, ey = geom.start
+    tipx, tipy = geom.tip
+    reach = math.hypot(tipx - ex, tipy - ey) or 1.0
+    ux, uy = (tipx - ex) / reach, (tipy - ey) / reach
 
     if kind == "thought":
         dots = ""
@@ -211,6 +305,32 @@ def _tail(bx, by, w, h, tail, kind, st):
         f'<path d="M{ax:.1f} {ay:.1f} L{tipx:.1f} {tipy:.1f} '
         f'L{bx2:.1f} {by2:.1f} Z" {_paint(st, 0.85)} stroke-linejoin="round"/>'
     )
+
+
+def _line_tail(geom: Tail, kind, st) -> tuple[str, str]:
+    """(under, over) of a ``line`` tail: a thin ink line from the bubble to just
+    short of the speaker, over a wider paper-coloured halo that keeps it legible
+    on busy art — the halo goes under the bubble so it never eats the outline.
+    A thought's line is a trail of small bubbles instead."""
+    (ex, ey), (tipx, tipy) = geom.start, geom.tip
+    sw = st["stroke_width"] * 0.8
+    if kind == "thought":
+        length = math.hypot(tipx - ex, tipy - ey)
+        n = max(1, int(length // (sw * 4)))
+        dots = "".join(
+            f'<circle cx="{ex + (tipx - ex) * i / n:.1f}" '
+            f'cy="{ey + (tipy - ey) * i / n:.1f}" r="{sw * 0.9:.2f}" '
+            f"{_paint(st, 0.5)}/>"
+            for i in range(1, n + 1)
+        )
+        return "", dots
+    common = (
+        f'd="M{ex:.1f} {ey:.1f} L{tipx:.1f} {tipy:.1f}" fill="none" '
+        'stroke-linecap="round"'
+    )
+    halo = f'<path {common} stroke="{st["fill"]}" stroke-width="{sw * 2.2:.2f}"/>'
+    line = f'<path {common} stroke="{st["stroke"]}" stroke-width="{sw:.2f}"/>'
+    return halo, line
 
 
 def _cloud(x, y, w, h):
