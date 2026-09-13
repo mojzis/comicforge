@@ -56,8 +56,12 @@ needs no Python (see [`reference.md`](reference.md)).
    - one panel of a page (to iterate on a single panel without re-reading the
      whole page): `cmf panel mystrip.yaml --row 0 --col 1 -o panel.png`
      (0-indexed; defaults to row 0 col 0), or `--all` to write every panel into a
-     directory. This is the right way to inspect one panel — **do not** render the
-     full page and crop it with ImageMagick or other tooling.
+     directory. Add `--on-page` to get the panel exactly as the page draws it
+     (full frame stroke, page background at the corners); `--layout` prints
+     each panel's position on the page as JSON (`--all` writes it as
+     `layout.json`) to lay the renders out again. This is the right way
+     to inspect one panel — **do not** render the full page and crop it with
+     ImageMagick or other tooling.
    - one character on its own (to eyeball a pose/expression):
      `cmf character bara sit happy --library examples/pes/characters`
      — extra args are bare pose/variant names or `key=value` (`pose=walk`,

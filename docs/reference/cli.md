@@ -118,7 +118,7 @@ See [Standalone illustrations](../guide/illustrations.md).
 
 ```bash
 cmf panel <spec.yaml> [-o <output>]
-  [--row 0] [--col 0] [--all] [--scale 0.5]
+  [--row 0] [--col 0] [--all] [--scale 0.5] [--on-page] [--layout]
   [--library <dir>] [--scenes <dir>] [--pixel-dir <dir>]
 ```
 
@@ -130,14 +130,38 @@ Renders individual panels of a page for review.
 | `--col` | `0` | Column index within the row, 0-based |
 | `--all` | off | Render every panel into the `-o` **directory** |
 | `--scale` | `0.5` | Size relative to the full-page panel |
+| `--on-page` | off | Crop the panel, plus half a gutter, out of the page render |
+| `--layout` | off | Print every panel's position on the page as JSON; render nothing |
 
 ```bash
 cmf panel pages/strip.yaml --row 0 --col 1
 cmf panel pages/strip.yaml --all -o panels/
 cmf panel pages/strip.yaml --row 1 --col 0 --scale 1.0
+cmf panel pages/strip.yaml --row 1 --col 0 --scale 1.0 --on-page
 ```
 
-With `--all`, files are written as `panel_r<R>c<C>.png`. The default `--scale`
+A plain panel render is drawn on its own canvas, which cuts the outer half of
+the frame stroke and leaves the rounded corners transparent. `--on-page`
+instead renders the whole page and frames the panel's box with half a gutter
+around it, so at `--scale 1.0` it matches the page pixel for pixel — full
+frame, page background in the corners, anything of the page (a title
+descender, say) that reaches into that margin.
+
+With `--all`, files are written as `panel_r<R>c<C>.png`, next to a
+`layout.json` saying where each sits on the page — the same JSON `--layout`
+prints:
+
+```json
+{"width": 840.0, "height": 1188.0,
+ "panels": [{"row": 0, "col": 0, "file": "panel_r0c0.png",
+             "box":   {"x": 56.0, "y": 96.0, "w": 352.0, "h": 506.0},
+             "image": {"x": 56.0, "y": 96.0, "w": 352.0, "h": 506.0}}]}
+```
+
+Everything is in page px. `box` is the panel; `image` is the area its render
+covers — the box itself, or the box plus half a gutter with `--on-page` (pass
+the same `--on-page` to `--layout`). To rebuild the page in HTML, place each
+`file` absolutely at its `image` rect, as a percentage of `width` / `height`. The default `--scale`
 of `0.5` is deliberately low-resolution — this is for looking, not for output.
 
 This is the supported way to inspect one panel. Rendering the whole page and

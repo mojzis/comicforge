@@ -88,6 +88,7 @@ resolves the same way.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
@@ -475,6 +476,46 @@ def bubble_layout(spec, row: int = 0, col: int = 0, spec_dir=None) -> dict:
     raise ValueError(f"no panel at row {row}, col {col}")
 
 
+def _rect(x, y, w, h) -> dict:
+    return {k: round(float(v), 1) for k, v in zip("xywh", (x, y, w, h), strict=True)}
+
+
+def panel_layout(spec, spec_dir=None, on_page=False, ext=".png") -> dict:
+    """Where every panel of a page sits, without rendering — to lay the panel
+    renders out again (an HTML preview, say) exactly as the page does.
+
+    *spec* is a dict or a path (then *spec_dir* defaults to its directory).
+    Every box is in page px; divide by the page ``width`` / ``height`` for
+    fractions. ``box`` is the panel itself; ``image`` is the area its panel
+    render covers — the box, or with *on_page* the box plus half a gutter::
+
+        {"width": 840.0, "height": 1188.0,           # page, px
+         "panels": [{"row": 0, "col": 0, "file": "panel_r0c0.png",
+                     "box":   {"x": 56.0, "y": 96.0, "w": 352.0, "h": 506.0},
+                     "image": {"x": 56.0, "y": 96.0, "w": 352.0, "h": 506.0}}]}
+
+    ``file`` is the name ``render_all_panels`` gives that panel (with *ext*).
+    """
+    if not isinstance(spec, dict):
+        spec, spec_dir = _load(spec)
+    if spec_type(spec) == "scene":
+        raise ValueError("a 'scene' spec has no panels — it is one illustration")
+    W, H, _k, _margin = _page_metrics(spec)
+    panels = []
+    for ri, ci, _panel, px, py, pw, ph in _layout(spec, spec_dir):
+        box = (px, py, pw, ph)
+        panels.append(
+            {
+                "row": ri,
+                "col": ci,
+                "file": f"panel_r{ri}c{ci}{ext}",
+                "box": _rect(*box),
+                "image": _rect(*(_window_box(spec, box) if on_page else box)),
+            }
+        )
+    return {"width": round(float(W), 1), "height": round(float(H), 1), "panels": panels}
+
+
 def build_panel_svg(
     spec,
     row,
@@ -484,11 +525,24 @@ def build_panel_svg(
     scale=1.0,
     pixel_library=None,
     spec_dir=None,
+    on_page=False,
 ) -> str:
     """Render a single panel standalone, at `scale` x its full-page pixel size
-    (use scale < 1 for a quick low-res review render)."""
+    (use scale < 1 for a quick low-res review render).
+
+    With *on_page* the result is a window onto the whole-page render instead:
+    the panel plus half a gutter around it, so its full frame stroke, the page
+    background at its rounded corners and anything else the page draws there
+    look exactly as they do on the page."""
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    for ri, ci, panel, _px, _py, pw, ph in _layout(spec, spec_dir):
+    for ri, ci, panel, px, py, pw, ph in _layout(spec, spec_dir):
+        if ri == row and ci == col and on_page:
+            return _page_window(
+                build_svg(spec, library, scenes, pixel_library, spec_dir=spec_dir),
+                spec,
+                (px, py, pw, ph),
+                scale,
+            )
         if ri == row and ci == col:
             # Render the panel body at full page size so absolute-sized elements
             # (bubble text) keep the same proportions as the whole-page render;
@@ -515,6 +569,29 @@ def build_panel_svg(
                 f"{body}\n</svg>"
             )
     raise ValueError(f"no panel at row {row}, col {col}")
+
+
+def _window_box(spec, box) -> tuple[float, float, float, float]:
+    """*box* (px, py, pw, ph) grown by half a gutter on every side, clamped to
+    the page: the area an ``on_page`` panel render shows."""
+    W, H, k, _margin = _page_metrics(spec)
+    pad = spec.get("gutter_mm", 5) * k / 2
+    px, py, pw, ph = box
+    x0, y0 = max(px - pad, 0), max(py - pad, 0)
+    x1, y1 = min(px + pw + pad, W), min(py + ph + pad, H)
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def _page_window(page_svg, spec, box, scale) -> str:
+    """Re-frame a whole-page SVG onto :func:`_window_box` of *box*, sized at
+    *scale*."""
+    x0, y0, w, h = _window_box(spec, box)
+    _root, body = page_svg.split("\n", 1)
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w * scale:.0f}" '
+        f'height="{h * scale:.0f}" viewBox="{x0:.1f} {y0:.1f} {w:.1f} {h:.1f}">\n'
+        f"{body}"
+    )
 
 
 def _scene_canvas(spec, scn, spec_dir) -> tuple[float, float]:
@@ -809,12 +886,22 @@ def render_panel(
     scenes=None,
     scale=0.5,
     pixel_library=None,
+    on_page=False,
 ):
-    """Render one panel to .svg/.png/.pdf for review. Returns the SVG."""
+    """Render one panel to .svg/.png/.pdf for review. Returns the SVG.
+    *on_page*: crop it from the page render (see :func:`build_panel_svg`)."""
     spec, spec_dir = _load(spec)
     return _write(
         build_panel_svg(
-            spec, row, col, library, scenes, scale, pixel_library, spec_dir=spec_dir
+            spec,
+            row,
+            col,
+            library,
+            scenes,
+            scale,
+            pixel_library,
+            spec_dir=spec_dir,
+            on_page=on_page,
         ),
         out_path,
     )
@@ -828,8 +915,11 @@ def render_all_panels(
     scale=0.5,
     ext=".png",
     pixel_library=None,
+    on_page=False,
 ):
-    """Render every panel into out_dir as panel_r<R>c<C>.<ext>. Returns paths."""
+    """Render every panel into out_dir as panel_r<R>c<C>.<ext>, plus a
+    ``layout.json`` of where each sits on the page (:func:`panel_layout`).
+    Returns the panel paths."""
     spec, spec_dir = _load(spec)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -838,11 +928,23 @@ def render_all_panels(
         p = out_dir / f"panel_r{ri}c{ci}{ext}"
         _write(
             build_panel_svg(
-                spec, ri, ci, library, scenes, scale, pixel_library, spec_dir=spec_dir
+                spec,
+                ri,
+                ci,
+                library,
+                scenes,
+                scale,
+                pixel_library,
+                spec_dir=spec_dir,
+                on_page=on_page,
             ),
             p,
         )
         outs.append(p)
+    layout_json = panel_layout(spec, spec_dir, on_page=on_page, ext=ext)
+    (out_dir / "layout.json").write_text(
+        json.dumps(layout_json, indent=2) + "\n", encoding="utf-8"
+    )
     return outs
 
 

@@ -9,6 +9,7 @@ from .render import (  # noqa: F401
     bubble_layout,
     load_spec,
     page_squeeze,
+    panel_layout,
     render_scene,
     render_spec,
 )

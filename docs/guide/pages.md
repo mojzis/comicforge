@@ -174,6 +174,7 @@ Render the panel instead:
 cmf panel pages/strip.yaml --row 0 --col 1        # 0-indexed, row then column
 cmf panel pages/strip.yaml --all -o panels/       # every panel into a directory
 cmf panel pages/strip.yaml --row 1 --col 0 --scale 1.0
+cmf panel pages/strip.yaml --row 1 --col 0 --on-page  # exactly as on the page
 ```
 
 <figure class="cf-demo" markdown>
@@ -185,6 +186,15 @@ cmf panel pages/strip.yaml --row 1 --col 0 --scale 1.0
 a quick look, not a final render. This is the right way to inspect one panel —
 rendering the whole page and cropping it with an image tool gives you the same
 picture for much more work.
+
+On its own canvas a panel loses the outer half of its frame stroke and its
+rounded corners go transparent. When you need it to look *exactly* as it does
+on the page, add `--on-page`: the panel is cropped out of the page render with
+half a gutter around it.
+
+`--all` also writes a `layout.json` with every panel's position on the page, and
+`--layout` prints the same JSON without rendering — enough to lay the panel
+images out again, say in an HTML preview. See [`panel`](../reference/cli.md#panel).
 
 ## Output formats
 
