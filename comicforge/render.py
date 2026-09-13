@@ -29,14 +29,17 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
     pixel_dir: "../pixel"      # path to pixel-art dir
     rows:
       - height: 1.0                  # relative weight (optional, default 1)
-                                     # or `height_mm: 60` for a fixed height;
-                                     # weighted rows share what fixed rows leave
+                                     # or `height_mm: 60` for a fixed height,
+                                     # or `height: auto` to size the row from its
+                                     # images + captions (squeezed to fit the page);
+                                     # weighted rows share what the others leave
         panels:
           - bg: "#fbfaf6"            # optional panel background
             caption: "Rain came."    # narration band under the art, inside
                                      # the frame; or {text:, max_chars:}
             image: "art/01.png"      # optional raster background, scaled to
-                                     # cover the panel; or {src:, fit:}
+                                     # cover the panel; or {src:, fit:, at:,
+                                     # crop: {top:, bottom:, left:, right:}}
             actors:
               - char: tom
                 pose: walk           # optional; defaults to character's default
@@ -51,17 +54,26 @@ Spec shape (all panel-relative coords are fractions 0..1 of the panel):
             bubbles:
               - text: "Ahoj!"
                 kind: speech         # speech | thought | shout
-                speaker: tom         # auto-place above this actor + aim the tail
-                                     # at their head; overrides below are optional
+                speaker: tom         # an actor's char, or a `speakers:` name:
+                                     # aligns the bubble + aims the tail there
                 at: tr               # corner/edge to hug: t/b/c x l/r/c (tl, tr,
                                      # bl, br, t, b, l, r, c); overrides x/y
                 x: 0.5  y: 0.2       # explicit centre (else derived from speaker)
                 to: [0.4, 0.5]       # explicit tail target (else the speaker's head)
+                tail_from: b         # where the tail leaves: edge t/b/l/r, a
+                                     # position 0..1 along it, or {edge:, pos:}
+                tail: curve          # wedge (default) | curve | line | none
+                tail_bend: 0.4       # curve/line: -1..1, 0 straight (else auto)
+            speakers:                # head positions for panels without actors
+              ema: [0.72, 0.3]       # (e.g. raster art), panel fractions
 
 When several bubbles in a panel omit `y`, they stack downward from the top,
 each placed below the measured height of the one before it, so they never
 overlap however long the text is; omit `x` too and each sits above its own
 speaker (or in the middle, when there is no speaker — as on a raster panel).
+On a panel with `speakers:`, a bubble with a `speaker` and no `x`/`y`/`at` is
+placed in reading order instead: on its speaker's side, its top clearly below
+the previous bubble's, keeping clear of speaker points and earlier tails.
 `at:` picks a corner or edge instead; a bubble only stacks under (or, from the
 bottom, over) the earlier bubbles it would actually overlap, so `tl` and `tr`
 sit side by side when they fit and `bl` climbs up from the bottom. Every
@@ -83,8 +95,8 @@ from xml.sax.saxutils import escape
 import cairosvg
 import yaml
 
-from . import caption, pixelart, raster
-from .bubbles import FONT, INK, bubble, bubble_size, resolve_style
+from . import caption, layout, pixelart, raster
+from .bubbles import FONT, INK, bubble
 from .library import Library
 from .pixelart import PixelLibrary
 from .scene import Scene, SceneLibrary
@@ -161,25 +173,88 @@ class _NullSceneLibrary:
         return {}
 
 
-def _panels(rows, x0, y0, W, H, gutter, k=1.0):
-    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph).
+def _panel_widths(panels, W, gutter) -> list[float]:
+    """Width of every panel in a row: ``width`` weights sharing *W* after gutters."""
+    total = sum(p.get("width", 1) for p in panels)
+    avail = W - gutter * (len(panels) - 1)
+    return [avail * p.get("width", 1) / total for p in panels]
 
-    A row with ``height_mm`` is that tall (times *k* px/mm); the other rows
-    share whatever height is left by their ``height`` weight. When every row
-    is fixed the remainder of the page stays blank.
+
+def _auto_parts(row, W, gutter, caption_style, spec_dir) -> list[tuple[float, float]]:
+    """(art_px, caption_band_px) per panel of a ``height: auto`` row: the art is
+    as tall as the panel's image (after ``crop:``) wants at the panel's width."""
+    parts = []
+    widths = _panel_widths(row["panels"], W, gutter)
+    for panel, pw in zip(row["panels"], widths, strict=True):
+        img = panel.get("image")
+        art = 0.0
+        if img is not None:
+            _x, _y, iw, ih = raster.region(img, spec_dir)
+            art = pw * ih / iw
+        parts.append((art, caption.height(panel.get("caption"), caption_style, pw)))
+    if not any(art for art, _band in parts):
+        raise ValueError(
+            "a `height: auto` row needs a panel with an `image:` to take its "
+            "height from"
+        )
+    return parts
+
+
+def _auto_height(parts, squeeze=1.0) -> float:
+    """A ``height: auto`` row's height: tall enough for every panel's art
+    (times *squeeze*) plus that panel's own caption band."""
+    return max(squeeze * art + band for art, band in parts)
+
+
+def _squeeze(autos, free) -> float:
+    """The largest factor <= 1 the art of every auto row can be scaled by so
+    the rows fit in *free* px. Caption bands never shrink."""
+    if sum(_auto_height(parts) for parts in autos) <= free:
+        return 1.0
+    lo, hi = 0.0, 1.0
+    for _ in range(40):  # total height is monotone in the factor: bisect
+        mid = (lo + hi) / 2
+        if sum(_auto_height(parts, mid) for parts in autos) <= free:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def _row_heights(rows, W, H, gutter, k=1.0, caption_style=None, spec_dir=None):
+    """(height in px of every row in a *W* x *H* grid, auto-row art squeeze).
+
+    A row with ``height_mm`` is that tall (times *k* px/mm). A ``height: auto``
+    row is as tall as its pictures want at their panel widths plus the caption
+    bands; when the auto rows do not fit, their art is scaled down by one common
+    factor until they do (``fit: cover`` then crops the excess, per the image's
+    ``at:``). The remaining rows share whatever height is left by their
+    ``height`` weight. When no row is weighted the remainder stays blank.
     """
-    fixed = {ri: r["height_mm"] * k for ri, r in enumerate(rows) if "height_mm" in r}
-    wsum = sum(r.get("height", 1) for ri, r in enumerate(rows) if ri not in fixed)
-    avail_h = H - gutter * (len(rows) - 1) - sum(fixed.values())
+    heights = {ri: r["height_mm"] * k for ri, r in enumerate(rows) if "height_mm" in r}
+    autos = {
+        ri: _auto_parts(r, W, gutter, caption_style, spec_dir)
+        for ri, r in enumerate(rows)
+        if ri not in heights and r.get("height") == "auto"
+    }
+    free = H - gutter * (len(rows) - 1) - sum(heights.values())
+    squeeze = _squeeze(autos.values(), free)
+    heights.update({ri: _auto_height(parts, squeeze) for ri, parts in autos.items()})
+    weighted = [ri for ri in range(len(rows)) if ri not in heights]
+    left = max(0.0, free - sum(heights[ri] for ri in autos))
+    wsum = sum(rows[ri].get("height", 1) for ri in weighted)
+    heights.update({ri: left * rows[ri].get("height", 1) / wsum for ri in weighted})
+    return [heights[ri] for ri in range(len(rows))], squeeze
+
+
+def _panels(rows, x0, y0, W, heights, gutter):
+    """Yield (row_idx, col_idx, panel_dict, px, py, pw, ph) for rows of the
+    given *heights* (see :func:`_row_heights`)."""
     cy = y0
-    for ri, row in enumerate(rows):
-        ph = fixed[ri] if ri in fixed else avail_h * row.get("height", 1) / wsum
-        cols = row["panels"]
-        cw_sum = sum(c.get("width", 1) for c in cols)
-        avail_w = W - gutter * (len(cols) - 1)
+    for ri, (row, ph) in enumerate(zip(rows, heights, strict=True)):
         cx = x0
-        for ci, panel in enumerate(cols):
-            pw = avail_w * panel.get("width", 1) / cw_sum
+        widths = _panel_widths(row["panels"], W, gutter)
+        for ci, (panel, pw) in enumerate(zip(row["panels"], widths, strict=True)):
             yield ri, ci, panel, cx, cy, pw, ph
             cx += pw + gutter
         cy += ph + gutter
@@ -222,12 +297,7 @@ def build_svg(
             "`comicforge scene` instead of `render`."
         )
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    page = spec.get("page", "A4")
-    w_mm, h_mm = PAGE[page] if isinstance(page, str) else page
-    k = spec.get("px_per_mm", 4)
-    W, H = w_mm * k, h_mm * k
-    margin = spec.get("margin_mm", 12) * k
-    gutter = spec.get("gutter_mm", 5) * k
+    W, H, _k, margin = _page_metrics(spec)
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
@@ -235,7 +305,6 @@ def build_svg(
         f'<rect width="{W}" height="{H}" fill="{spec.get("bg", "#ffffff")}"/>',
     ]
 
-    top = margin
     title = spec.get("title")
     if title:
         tst = _title_style(spec)
@@ -245,14 +314,8 @@ def build_svg(
             f'font-family="{tst["font"]}" font-size="{ts}" font-weight="bold" '
             f'fill="{tst["color"]}">{escape(title)}</text>'
         )
-        top = margin + ts + 14
 
-    grid_x, grid_y = margin, top
-    grid_w, grid_h = W - 2 * margin, H - top - margin
-
-    for _ri, _ci, panel, px, py, pw, ph in _panels(
-        spec["rows"], grid_x, grid_y, grid_w, grid_h, gutter, k
-    ):
+    for _ri, _ci, panel, px, py, pw, ph in _layout(spec, spec_dir):
         parts.append(
             _render_panel(
                 panel,
@@ -281,19 +344,135 @@ def _title_style(spec, font_size=TITLE_STYLE["font_size"]) -> dict:
     return {**TITLE_STYLE, "font_size": font_size, **(spec.get("title_style") or {})}
 
 
-def _layout(spec):
-    """Yield (row, col, panel, px, py, pw, ph) for every panel, using the same
-    page metrics as build_svg."""
+def _page_metrics(spec) -> tuple[float, float, float, float]:
+    """(page width px, page height px, px per mm, margin px) of a page spec."""
     page = spec.get("page", "A4")
     w_mm, h_mm = PAGE[page] if isinstance(page, str) else page
     k = spec.get("px_per_mm", 4)
-    W, H = w_mm * k, h_mm * k
-    margin = spec.get("margin_mm", 12) * k
+    return w_mm * k, h_mm * k, k, spec.get("margin_mm", 12) * k
+
+
+def _grid(spec, spec_dir=None):
+    """(grid x, grid y, grid width, gutter, row heights, squeeze) of a page spec.
+    *spec_dir* resolves the images a ``height: auto`` row measures."""
+    W, H, k, margin = _page_metrics(spec)
     gutter = spec.get("gutter_mm", 5) * k
     top = margin + (_title_style(spec)["font_size"] + 14 if spec.get("title") else 0)
-    yield from _panels(
-        spec["rows"], margin, top, W - 2 * margin, H - top - margin, gutter, k
+    grid_w, grid_h = W - 2 * margin, H - top - margin
+    heights, squeeze = _row_heights(
+        spec["rows"], grid_w, grid_h, gutter, k, spec.get("caption_style"), spec_dir
     )
+    return margin, top, grid_w, gutter, heights, squeeze
+
+
+def _layout(spec, spec_dir=None):
+    """Yield (row, col, panel, px, py, pw, ph) for every panel of a page spec."""
+    x0, y0, grid_w, gutter, heights, _squeeze = _grid(spec, spec_dir)
+    yield from _panels(spec["rows"], x0, y0, grid_w, heights, gutter)
+
+
+def page_squeeze(spec, spec_dir: Path | None = None) -> float:
+    """How much a page's ``height: auto`` rows have their art scaled to fit:
+    ``1.0`` when they fit as they are, ``0.9`` when each picture loses a tenth
+    of its height to the crop. Lets a caller paginate — start a new page when
+    adding a row would squeeze past what it tolerates. *spec* is a dict or a
+    path (then *spec_dir* defaults to its directory)."""
+    if not isinstance(spec, dict):
+        spec, spec_dir = _load(spec)
+    return _grid(spec, spec_dir)[-1]
+
+
+def _art_boxes(spec, spec_dir=None, scenes=None):
+    """Yield (where, panel, art width px, art height px) for every panel of a
+    page spec — ``where`` is ``r<R>c<C>`` — or once, as ``scene``, for a
+    standalone scene spec. The art box is the panel less its caption band:
+    what panel fractions are relative to."""
+    cst = spec.get("caption_style")
+    if spec_type(spec) == "scene":
+        w, h = _scene_canvas(spec, scenes or _NullSceneLibrary(), spec_dir)
+        yield "scene", spec, w, h - caption.height(spec.get("caption"), cst, w)
+        return
+    for ri, ci, panel, _px, _py, pw, ph in _layout(spec, spec_dir):
+        art_h = ph - caption.height(panel.get("caption"), cst, pw)
+        yield f"r{ri}c{ci}", panel, pw, art_h
+
+
+def _fractions(xy, w, h) -> list[float]:
+    return [round(xy[0] / w, 4), round(xy[1] / h, 4)]
+
+
+def panel_bubble_layout(panel: dict, width, height, bubble_style=None) -> dict:
+    """Bubble geometry of one *panel* dict whose art box is *width* x *height*
+    px; see :func:`bubble_layout` for the shape of the result."""
+    placements = layout.layout_bubbles(panel, 0, 0, width, height, bubble_style)
+    points = layout.speaker_points(panel)
+
+    def frac(xy):
+        return _fractions(xy, width, height)
+
+    bubbles = []
+    for p in placements:
+        x0, y0, x1, y1 = p.box
+        tail = None
+        if p.tail is not None:
+            tail = {
+                "edge": p.tail.edge,
+                "shape": p.tail.shape,
+                "bend": p.tail.bend,
+                "start": frac(p.tail.start),
+                "control": frac(p.tail.control),
+                "tip": frac(p.tail.tip),
+                "target": frac(p.tail.target),
+            }
+        bubbles.append(
+            {
+                "index": p.index,
+                "text": p.text,
+                "kind": p.kind,
+                "speaker": p.speaker,
+                "auto": p.auto,
+                "center": frac(p.centre),
+                "box": frac((x0, y0)) + frac((x1, y1)),
+                "tail": tail,
+            }
+        )
+    px_points = {n: (x * width, y * height) for n, (x, y) in points.items()}
+    return {
+        "width": round(width, 2),
+        "height": round(height, 2),
+        "speakers": {n: [round(x, 4), round(y, 4)] for n, (x, y) in points.items()},
+        "bubbles": bubbles,
+        "warnings": layout.layout_warnings(placements, px_points),
+    }
+
+
+def bubble_layout(spec, row: int = 0, col: int = 0, spec_dir=None) -> dict:
+    """Where every bubble of one panel lands, without rendering.
+
+    *spec* is a dict or a path (then *spec_dir* defaults to its directory); a
+    standalone scene spec is its own single panel and ignores *row* / *col*.
+    Returns a JSON-ready dict, every point in panel fractions of the art box
+    (the panel less its caption band, as in the spec)::
+
+        {"width": 640.0, "height": 412.5,          # art box, page px
+         "speakers": {"ema": [0.7, 0.3]},          # resolved speaker points
+         "bubbles": [{"index": 0, "text": "…", "kind": "speech",
+                      "speaker": "ema", "auto": True,  # reading-order placed
+                      "center": [x, y], "box": [x0, y0, x1, y1],
+                      "tail": {"edge": "b", "shape": "wedge", "bend": 0.0,
+                               "start": [x, y], "control": [x, y],
+                               "tip": [x, y], "target": [x, y]} or None}],
+                                                   # None: no target, or tail: none
+         "warnings": ["…"]}                        # as `validate` reports them
+    """
+    if not isinstance(spec, dict):
+        spec, spec_dir = _load(spec)
+    sc_path = _resolve_dir(spec.get("scenes_dir"), spec_dir)
+    scenes = SceneLibrary(sc_path) if sc_path is not None else _NullSceneLibrary()
+    for where, panel, w, h in _art_boxes(spec, spec_dir, scenes):
+        if where in ("scene", f"r{row}c{col}"):
+            return panel_bubble_layout(panel, w, h, spec.get("bubble_style"))
+    raise ValueError(f"no panel at row {row}, col {col}")
 
 
 def build_panel_svg(
@@ -309,7 +488,7 @@ def build_panel_svg(
     """Render a single panel standalone, at `scale` x its full-page pixel size
     (use scale < 1 for a quick low-res review render)."""
     lib, scn, pxlib = _build_libs(spec, spec_dir, library, scenes, pixel_library)
-    for ri, ci, panel, _px, _py, pw, ph in _layout(spec):
+    for ri, ci, panel, _px, _py, pw, ph in _layout(spec, spec_dir):
         if ri == row and ci == col:
             # Render the panel body at full page size so absolute-sized elements
             # (bubble text) keep the same proportions as the whole-page render;
@@ -348,7 +527,7 @@ def _scene_canvas(spec, scn, spec_dir) -> tuple[float, float]:
     img = spec.get("image")
     if img is None:
         raise ValueError("a scene spec needs a background: set 'scene:' or 'image:'.")
-    iw, ih = raster.size(raster.resolve(img, spec_dir))
+    _x, _y, iw, ih = raster.region(img, spec_dir)
     scale = spec.get("scale", 1)
     return iw * scale, ih * scale
 
@@ -461,133 +640,22 @@ def render_character(
 # Panel outline defaults; a page's `frame:` (and a panel's) override any key.
 FRAME: dict[str, Any] = {"width": 3.5, "color": INK, "radius": 10}
 
-# Bubble auto-layout: how far from a panel edge a bubble is kept, and the gap
-# left between two bubbles that stack because neither declared a `y`.
-BUBBLE_INSET = 8.0
-BUBBLE_GAP = 10.0
-
-
-def _clamp(centre, size, origin, extent):
-    """Keep a bubble of *size* inside [origin, origin+extent], centring it when
-    it is too big to fit."""
-    if size + 2 * BUBBLE_INSET >= extent:
-        return origin + extent / 2
-    lo = origin + BUBBLE_INSET + size / 2
-    hi = origin + extent - BUBBLE_INSET - size / 2
-    return min(max(centre, lo), hi)
-
-
-# `at:` anchors — (column, edge). A column is l / c / r, an edge t / b, or c
-# for "vertically centred, no stacking".
-ANCHORS = {
-    "tl": ("l", "t"), "t": ("c", "t"), "tc": ("c", "t"), "tr": ("r", "t"),
-    "bl": ("l", "b"), "b": ("c", "b"), "bc": ("c", "b"), "br": ("r", "b"),
-    "l": ("l", "c"), "c": ("c", "c"), "r": ("r", "c"), "cl": ("l", "c"),
-    "cr": ("r", "c"),
-}  # fmt: skip
-
-
-def _anchor(at):
-    if at is None:
-        return "c", "t"
-    if at not in ANCHORS:
-        raise ValueError(f"unknown bubble anchor {at!r}; use one of {sorted(ANCHORS)}")
-    return ANCHORS[at]
-
-
-def _stack(edge, bx, bw, bh, placed, py, ph):
-    """Vertical centre for a bubble of width *bw* / height *bh* centred on
-    *bx*: `t` sits as high as it can, `b` as low as it can, moving past any
-    bubble already *placed* (list of (x0, y0, x1, y1) boxes) that it would
-    overlap; `c` sits in the middle of the panel."""
-    if edge == "c":
-        return py + ph / 2
-    x0, x1 = bx - bw / 2, bx + bw / 2
-    top = py + ph - BUBBLE_INSET - bh if edge == "b" else py + BUBBLE_INSET
-    moved = True
-    while moved:
-        moved = False
-        for bx0, by0, bx1, by1 in placed:
-            if bx0 < x1 and bx1 > x0 and by0 < top + bh and by1 > top:
-                top = by0 - BUBBLE_GAP - bh if edge == "b" else by1 + BUBBLE_GAP
-                moved = True
-    return top + bh / 2
-
-
-def _tail_target(b, actor):
-    """Tail target in panel fractions: explicit `to`, else the speaker's head."""
-    to = b.get("to")
-    if to is None and actor is not None:
-        to = [
-            actor.get("x", 0.5),
-            max(actor.get("y", 0.6) - actor.get("scale", 0.8) * 0.42, 0.05),
-        ]
-    return to
-
 
 def _render_bubbles(panel, px, py, pw, ph, bubble_style) -> list[str]:
-    """Draw a panel's bubbles on top of everything else.
-
-    Placement can be derived from a bubble's `speaker`; on a raster panel there
-    are no actors, so a bubble with no `x`/`y` is centred horizontally and
-    stacked below the measured bottom of the previous one. `at:` moves a bubble
-    to a corner or edge instead; each column keeps its own top and bottom
-    stack so bubbles that share a corner never overlap.
-    """
-    actors_by_char = {}
-    for a in panel.get("actors", []):
-        actors_by_char.setdefault(a["char"], a)
-    style = resolve_style(bubble_style)
-
-    def ax(fx):  # panel fraction -> page px
-        return px + fx * pw
-
-    def ay(fy):
-        return py + fy * ph
-
-    out = []
-    placed = []  # (x0, y0, x1, y1) of every bubble drawn so far, for stacking
-    for b in panel.get("bubbles", []):
-        actor = actors_by_char.get(b.get("speaker")) if b.get("speaker") else None
-        to = _tail_target(b, actor)
-        tail = (ax(to[0]), ay(to[1])) if to else None
-        text = b["text"]
-        if b.get("uppercase", style["uppercase"]):
-            text = text.upper()
-        kind = b.get("kind", "speech")
-        max_chars = b.get("max_chars", 22)
-        fs = b.get("fs", style["font_size"])
-        bw, bh = bubble_size(text, kind, max_chars, fs, style=style)
-        col, edge = _anchor(b.get("at"))
-        # centre: explicit x/y, else the anchor column / above the speaker
-        if b.get("x") is not None:
-            bx = ax(b["x"])
-        elif col == "c":
-            bx = ax(actor["x"] if actor and "x" in actor else 0.5)
-        elif col == "l":
-            bx = px + BUBBLE_INSET + bw / 2
-        else:
-            bx = px + pw - BUBBLE_INSET - bw / 2
-        bx = _clamp(bx, bw, px, pw)
-        if b.get("y") is not None:
-            by = ay(b["y"])
-        else:
-            by = _stack(edge, bx, bw, bh, placed, py, ph)
-        by = _clamp(by, bh, py, ph)
-        placed.append((bx - bw / 2, by - bh / 2, bx + bw / 2, by + bh / 2))
-        out.append(
-            bubble(
-                text,
-                bx,
-                by,
-                tail=tail,
-                kind=kind,
-                max_chars=max_chars,
-                fs=fs,
-                style=style,
-            )
+    """Draw a panel's bubbles on top of everything else, where
+    :func:`layout.layout_bubbles` puts them."""
+    return [
+        bubble(
+            p.text,
+            *p.centre,
+            tail=p.tail.target if p.tail else None,
+            kind=p.kind,
+            max_chars=p.max_chars,
+            fs=p.fs,
+            style=p.style,
         )
-    return out
+        for p in layout.layout_bubbles(panel, px, py, pw, ph, bubble_style)
+    ]
 
 
 def _render_panel(
@@ -621,7 +689,7 @@ def _render_panel(
     cst = caption.resolve_style(caption_style)
     box_h = ph
     if cap is not None:
-        band_h = caption.height(cap, cst)
+        band_h = caption.height(cap, cst, pw)
         ph = ph - band_h
         out.append(
             caption.band(cap, cst, px, py + ph, pw, band_h, fr["color"], fr["width"])
@@ -766,7 +834,7 @@ def render_all_panels(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     outs = []
-    for ri, ci, *_ in _layout(spec):
+    for ri, ci, *_ in _layout(spec, spec_dir):
         p = out_dir / f"panel_r{ri}c{ci}{ext}"
         _write(
             build_panel_svg(

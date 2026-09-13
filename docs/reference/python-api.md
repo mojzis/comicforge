@@ -133,6 +133,50 @@ if problems:
 Returns a list of strings, empty when the spec is sound. It never raises for a
 bad spec — that is the point.
 
+```python
+from comicforge.validate import check_spec
+
+report = check_spec("pages/strip.yaml")
+report.problems   # the same list validate_spec returns
+report.warnings   # bubble layout warnings, computed only when there are no problems
+```
+
+## Bubble layout
+
+### `bubble_layout(spec, row=0, col=0, spec_dir=None)`
+
+Where every bubble of one panel lands, without rendering — for an editor that
+draws handles over a panel. `spec` is a dict or a path; a scene spec is its own
+single panel. Every point is in panel fractions of the art box (the panel less
+its caption band), the same units the spec uses.
+
+```python
+from comicforge import bubble_layout
+
+layout = bubble_layout("pages/strip.yaml", row=0, col=1)
+```
+
+```python
+{"width": 492.0, "height": 307.5,            # art box, page px
+ "speakers": {"hen": [0.42, 0.78]},          # every resolvable speaker point
+ "bubbles": [
+   {"index": 0, "text": "Kvok!", "kind": "speech", "speaker": "hen",
+    "auto": True,                            # placed in reading order
+    "center": [0.2, 0.08], "box": [0.12, 0.02, 0.28, 0.14],  # x0, y0, x1, y1
+    "tail": {"edge": "b", "shape": "wedge",
+             "bend": 0.0,                    # -1..1, the resolved bow
+             "start": [0.21, 0.14],          # where it leaves the bubble
+             "control": [0.22, 0.21],        # the quadratic control point
+             "tip": [0.24, 0.29],            # where the drawn tail ends
+             "target": [0.42, 0.78]}},       # what it aims at; tail is None
+                                             # without a target or with `tail: none`
+ ],
+ "warnings": []}                             # as `cmf validate` words them
+```
+
+`comicforge.render.panel_bubble_layout(panel, width, height, bubble_style)`
+does the same for a bare panel dict and an art-box size you already know.
+
 ## The manifests
 
 ```python

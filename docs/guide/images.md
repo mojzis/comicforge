@@ -8,6 +8,7 @@ bubbles compose on top.
 ```yaml
 image: "art/panel-01.png"                     # short form, fit: cover
 image: {src: "art/panel-01.png", fit: contain} # long form
+image: {src: "art/panel-01.png", at: t, crop: {bottom: 120}}
 ```
 
 The path resolves against the **spec file's** directory, like every other
@@ -38,6 +39,28 @@ something at its edges you cannot lose — and the reason to set a deliberate
 `bg:` alongside it.
 
 Supported types: `.png`, `.jpg` / `.jpeg`, `.gif`, `.webp`.
+
+## Cropping and anchoring
+
+Two keys decide *which* part of the picture survives:
+
+| Key | Behaviour |
+|---|---|
+| `crop: {top, bottom, left, right}` | Trim that many **image pixels** off each edge before fitting. Omitted sides are `0` |
+| `at` | Pin the image to an edge or corner — `t`, `b`, `l`, `r`, `tl`, `tr`, `bl`, `br`, `c` — the same names a [bubble's `at:`](bubbles.md) uses. Default: centred |
+
+```yaml
+image: {src: "art/05.png", crop: {top: 80, bottom: 40}}  # lose the empty sky
+image: {src: "art/06.png", at: b}                        # crop the top, keep the feet
+```
+
+`crop:` is exact and changes the picture's shape: `fit`, a standalone scene's
+canvas and a [`height: auto` row](pages.md#rows-sized-by-their-pictures) all
+see the trimmed image. `at:` changes nothing about the size; it only moves
+where `fit: cover` takes its overflow from (and, with `fit: contain`, which side
+the letterbox strips go on). Generated art often has room to spare at the top
+or bottom — trim it with `crop:` and let `at:` handle whatever the page still
+has to squeeze.
 
 ## Images are embedded, not linked
 

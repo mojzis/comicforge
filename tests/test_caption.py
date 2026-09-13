@@ -1,6 +1,7 @@
 import pytest
 
 from comicforge import caption
+from comicforge.bubbles import text_width
 from comicforge.render import build_svg
 
 
@@ -66,3 +67,36 @@ def test_caption_uppercase(library):
         "rows": [{"panels": [{"caption": "Rain came."}]}],
     }
     assert "RAIN CAME." in build_svg(spec, library=library)
+
+
+LONG = "Rain came. Snow came. The goatherd checked every single day, just to be sure."
+
+
+def test_auto_wrap_uses_more_lines_in_a_narrower_band():
+    cap = {"text": LONG, "max_chars": "auto"}
+    assert caption.height(cap, width=150) > caption.height(cap, width=600)
+
+
+def test_auto_wrap_keeps_every_line_inside_the_band():
+    st = caption.resolve_style({"max_chars": "auto"})
+    widest = max(text_width(ln, 13) for ln in caption.lines({"text": LONG}, st, 200))
+    assert widest <= 200 - 2 * st["pad"]
+
+
+def test_auto_wrap_narrow_em_fits_more_per_line():
+    cap = {"text": LONG, "max_chars": "auto"}
+    narrow = caption.height(cap, {"em": 0.6}, width=250)
+    assert narrow < caption.height(cap, width=250)
+
+
+def test_auto_wrap_needs_a_width():
+    with pytest.raises(ValueError, match="needs the band width"):
+        caption.height({"text": LONG, "max_chars": "auto"})
+
+
+def test_auto_caption_renders_in_a_panel(library):
+    spec = {
+        "caption_style": {"max_chars": "auto"},
+        "rows": [{"panels": [{"caption": LONG}]}],
+    }
+    assert "goatherd" in build_svg(spec, library=library)

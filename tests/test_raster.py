@@ -9,11 +9,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from comicforge import raster
+from comicforge import caption, raster
 from comicforge.render import (
+    _layout,
     build_panel_svg,
     build_scene_svg,
     build_svg,
+    page_squeeze,
     render_scene,
     render_spec,
 )
@@ -239,3 +241,166 @@ def test_validate_reports_every_image_problem_at_once(tmp_path, library):
     }
     problems = _validate(spec, library)
     assert len(problems) == 3
+
+
+# --- crop and at --------------------------------------------------------------
+
+
+def test_at_pins_the_cover_crop_to_an_edge(art, library):
+    svg = build_svg(_page({"src": str(art), "at": "t"}), library=library)
+    assert 'preserveAspectRatio="xMidYMin slice"' in svg
+
+
+def test_unknown_at_raises(art, library):
+    with pytest.raises(ValueError, match="unknown image anchor"):
+        build_svg(_page({"src": str(art), "at": "top"}), library=library)
+
+
+def test_crop_views_only_the_kept_region(art, library):
+    img = {"src": str(art), "crop": {"top": 2, "bottom": 3, "right": 5}}
+    svg = build_svg(_page(img), library=library)
+    assert 'viewBox="0 2 25 15"' in svg
+
+
+def test_crop_draws_the_whole_image_inside_the_viewport(art, library):
+    img = {"src": str(art), "crop": {"top": 2}}
+    svg = build_svg(_page(img), library=library)
+    assert '<image width="30" height="20"' in svg
+
+
+def test_crop_side_must_be_known(art, library):
+    with pytest.raises(ValueError, match="unknown image crop side"):
+        build_svg(_page({"src": str(art), "crop": {"up": 2}}), library=library)
+
+
+def test_crop_must_leave_something(art, library):
+    with pytest.raises(ValueError, match="leaves nothing"):
+        build_svg(
+            _page({"src": str(art), "crop": {"top": 10, "bottom": 10}}), library=library
+        )
+
+
+def test_standalone_scene_sizes_to_the_cropped_image(art, library):
+    spec = {"type": "scene", "image": {"src": str(art), "crop": {"left": 10}}}
+    svg = build_scene_svg(spec, library=library)
+    assert 'width="20" height="20"' in svg
+
+
+def test_validate_accepts_crop_and_at(art, library):
+    img = {"src": str(art), "at": "b", "crop": {"top": 4}}
+    assert _validate(_page(img), library) == []
+
+
+def test_validate_flags_a_bad_at(art, library):
+    problems = _validate(_page({"src": str(art), "at": "top"}), library)
+    assert any("unknown image anchor" in p for p in problems)
+
+
+def test_validate_flags_a_negative_crop(art, library):
+    problems = _validate(_page({"src": str(art), "crop": {"top": -1}}), library)
+    assert any("non-negative pixel count" in p for p in problems)
+
+
+def test_validate_flags_a_crop_that_eats_the_image(art, library):
+    problems = _validate(_page({"src": str(art), "crop": {"left": 30}}), library)
+    assert any("leaves nothing" in p for p in problems)
+
+
+# --- height: auto rows ----------------------------------------------------------
+
+
+def _auto_page(*rows, **page):
+    """A 100x100 mm page at 1 px/mm with no margins or gutters."""
+    base = {"page": [100, 100], "px_per_mm": 1, "margin_mm": 0, "gutter_mm": 0}
+    return {**base, **page, "rows": list(rows)}
+
+
+def _heights(spec):
+    return [ph for _ri, ci, *_, ph in _layout(spec) if ci == 0]
+
+
+def test_auto_row_takes_the_image_aspect_at_panel_width(art):
+    spec = _auto_page(
+        {"height": "auto", "panels": [{"image": str(art)}]}, {"panels": [{}]}
+    )
+    assert _heights(spec) == [pytest.approx(100 * 20 / 30), pytest.approx(100 / 3)]
+
+
+def test_auto_row_measures_the_cropped_image(art):
+    img = {"src": str(art), "crop": {"top": 5, "bottom": 5}}
+    spec = _auto_page({"height": "auto", "panels": [{"image": img}]})
+    assert _heights(spec) == [pytest.approx(100 * 10 / 30)]
+
+
+def test_auto_row_adds_the_caption_band(art):
+    cap = {"text": "Rain came."}
+    spec = _auto_page(
+        {"height": "auto", "panels": [{"image": str(art), "caption": cap}]}
+    )
+    assert _heights(spec) == [pytest.approx(100 * 20 / 30 + caption.height(cap))]
+
+
+def test_auto_rows_that_overflow_squeeze_their_art_but_not_captions(art):
+    cap = {"text": "Rain came."}
+    row = {"height": "auto", "panels": [{"image": str(art), "caption": cap}]}
+    # 2 x (66.7 art + band) > 100: the art shrinks until each row is half
+    assert _heights(_auto_page(row, row)) == [pytest.approx(50), pytest.approx(50)]
+
+
+def test_squeezed_auto_rows_keep_their_caption_bands_whole(art):
+    cap = {"text": "Rain came."}
+    band = caption.height(cap)
+    with_cap = {"height": "auto", "panels": [{"image": str(art), "caption": cap}]}
+    bare = {"height": "auto", "panels": [{"image": str(art)}]}
+    art_h = (100 - band) / 2  # both arts squeezed alike, the band on top of one
+    assert _heights(_auto_page(with_cap, bare)) == [
+        pytest.approx(art_h + band),
+        pytest.approx(art_h),
+    ]
+
+
+def test_auto_row_is_as_tall_as_its_tallest_panel(art, tmp_path):
+    tall = _png(tmp_path / "tall.png", w=10, h=20)
+    spec = _auto_page(
+        {"height": "auto", "panels": [{"image": str(art)}, {"image": str(tall)}]}
+    )
+    assert _heights(spec) == [pytest.approx(100)]  # the 50 px wide, 1:2 image
+
+
+def test_auto_row_without_an_image_raises():
+    with pytest.raises(ValueError, match="needs a panel with an `image:`"):
+        _heights(_auto_page({"height": "auto", "panels": [{}]}))
+
+
+def test_auto_row_images_resolve_against_the_spec_dir(art):
+    spec = _auto_page({"height": "auto", "panels": [{"image": art.name}]})
+    heights = [ph for *_, ph in _layout(spec, art.parent)]
+    assert heights == [pytest.approx(100 * 20 / 30)]
+
+
+def test_validate_flags_an_auto_row_without_an_image(library):
+    problems = _validate({"rows": [{"height": "auto", "panels": [{}]}]}, library)
+    assert any("needs a panel with an `image:`" in p for p in problems)
+
+
+def test_validate_flags_a_bad_row_height(library):
+    problems = _validate({"rows": [{"height": "tall", "panels": [{}]}]}, library)
+    assert any("row height must be" in p for p in problems)
+
+
+def test_page_squeeze_is_one_when_auto_rows_fit(art):
+    spec = _auto_page({"height": "auto", "panels": [{"image": str(art)}]})
+    assert page_squeeze(spec) == 1.0
+
+
+def test_page_squeeze_reports_the_art_scale_of_an_overflowing_page(art):
+    row = {"height": "auto", "panels": [{"image": str(art)}]}
+    # two 66.7 px arts in 100 px: each scaled to 50
+    assert page_squeeze(_auto_page(row, row)) == pytest.approx(0.75)
+
+
+def test_page_squeeze_reads_a_spec_file_relative_to_it(art):
+    spec = art.parent / "page.yaml"
+    row = {"height": "auto", "panels": [{"image": art.name}]}
+    spec.write_text(yaml.safe_dump(_auto_page(row, row)), encoding="utf-8")
+    assert page_squeeze(spec) == pytest.approx(0.75)

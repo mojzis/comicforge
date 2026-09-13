@@ -1,0 +1,47 @@
+# Speaker points on raster art: no actors, just where each head (or voice)
+# is, in panel fractions. Bubbles with a `speaker` and no x/y/at are placed in
+# reading order on their speaker's side, and their tails aim at the points.
+# `height: auto` rows keep the whole picture, so the points match the image.
+page: [180, 136]
+px_per_mm: 6
+margin_mm: 6
+gutter_mm: 4
+library: "../../examples/pes/characters"
+bubble_style: {font_size: 12}
+
+rows:
+  - height: auto
+    panels:
+      - caption: "speakers: — the right-hand voice first"
+        image: "raster-art/backdrop.png"
+        speakers:
+          door: [0.785, 0.78]
+          hen: [0.42, 0.78]
+        bubbles:
+          - {text: "Slepice, domů!", speaker: door, max_chars: 14}
+          - {text: "Ještě chvilku!", speaker: hen, max_chars: 14}
+
+      - caption: "tail: line"
+        image: "raster-art/backdrop.png"
+        speakers:
+          sun: [0.84, 0.21]
+          hen: [0.42, 0.78]
+        bubbles:
+          - {text: "Prší, schovej se.", speaker: sun, max_chars: 12, tail: line}
+          - {text: "Mně to nevadí.", speaker: hen, max_chars: 12, tail: line}
+
+  - height: auto
+    panels:
+      - caption: "tail_from: {edge: r, pos: 0.8}"
+        image: "raster-art/backdrop.png"
+        speakers:
+          hen: [0.42, 0.78]
+        bubbles:
+          - {text: "Kvok!", speaker: hen, at: tl, tail_from: {edge: r, pos: 0.8}}
+
+      - caption: "a thought with a line is dotted"
+        image: "raster-art/backdrop.png"
+        speakers:
+          hen: [0.42, 0.78]
+        bubbles:
+          - {text: "Kdy už přestane pršet?", kind: thought, speaker: hen, max_chars: 14, tail: line}

@@ -5,6 +5,12 @@ Designed so an LLM (or you) can author pages as plain declarative text.
 """
 
 from .pixelart import PixelLibrary  # noqa: F401
-from .render import load_spec, render_scene, render_spec  # noqa: F401
+from .render import (  # noqa: F401
+    bubble_layout,
+    load_spec,
+    page_squeeze,
+    render_scene,
+    render_spec,
+)
 
 __version__ = "0.2.0"

@@ -1,0 +1,22 @@
+# `height: auto` rows take their height from the image (after `crop:`) plus
+# the caption band. Too tall for the page together, so the art is squeezed and
+# `fit: cover` crops the rest — `at:` picks which edge survives.
+page: [120, 95]
+px_per_mm: 5
+margin_mm: 5
+gutter_mm: 4
+library: "../../examples/pes/characters"
+caption_style: {font_size: 12}
+
+rows:
+  - height: auto
+    panels:
+      - caption: "crop: {top: 60, bottom: 40} — sky and ground trimmed first"
+        image: {src: "raster-art/backdrop.png", crop: {top: 60, bottom: 40}}
+
+  - height: auto
+    panels:
+      - caption: "at: t — squeezed, keeps the top"
+        image: {src: "raster-art/backdrop.png", at: t}
+      - caption: "at: b — keeps the bottom"
+        image: {src: "raster-art/backdrop.png", at: b}
