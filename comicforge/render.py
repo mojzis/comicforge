@@ -398,18 +398,14 @@ def _art_boxes(spec, spec_dir=None, scenes=None):
         yield f"r{ri}c{ci}", panel, pw, art_h
 
 
-def _fractions(xy, w, h) -> list[float]:
-    return [round(xy[0] / w, 4), round(xy[1] / h, 4)]
-
-
 def panel_bubble_layout(panel: dict, width, height, bubble_style=None) -> dict:
     """Bubble geometry of one *panel* dict whose art box is *width* x *height*
     px; see :func:`bubble_layout` for the shape of the result."""
     placements = layout.layout_bubbles(panel, 0, 0, width, height, bubble_style)
     points = layout.speaker_points(panel)
 
-    def frac(xy):
-        return _fractions(xy, width, height)
+    def frac(xy) -> list[float]:
+        return [round(xy[0] / width, 4), round(xy[1] / height, 4)]
 
     bubbles = []
     for p in placements:

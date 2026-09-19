@@ -117,7 +117,7 @@ def _box(text, max_chars, fs, pad, em=1.0):
 _OUTSET = {"thought": (12, 16), "shout": (16, 16)}
 
 
-def bubble_size(text, kind="speech", max_chars=22, fs=None, pad=None, style=None):
+def bubble_size(text, kind="speech", max_chars=22, fs=None, style=None):
     """Outer (width, height) a `bubble` call will occupy, tail excluded.
 
     `thought` and `shout` draw outside the text body, so callers that stack
@@ -125,8 +125,7 @@ def bubble_size(text, kind="speech", max_chars=22, fs=None, pad=None, style=None
     """
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
-    pad = st["pad"] if pad is None else pad
-    _lines, _lh, w, h = _box(text, max_chars, fs, pad, st["em"])
+    _lines, _lh, w, h = _box(text, max_chars, fs, st["pad"], st["em"])
     ow, oh = _OUTSET.get(kind, (0, 0))
     return w + ow, h + oh
 
@@ -151,12 +150,11 @@ def _paint(st, scale=1.0):
     )
 
 
-def body_size(text, max_chars=22, fs=None, pad=None, style=None):
+def body_size(text, max_chars=22, fs=None, style=None):
     """(width, height) of the text body a bubble's tail is measured against."""
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
-    pad = st["pad"] if pad is None else pad
-    _lines, _lh, w, h = _box(text, max_chars, fs, pad, st["em"])
+    _lines, _lh, w, h = _box(text, max_chars, fs, st["pad"], st["em"])
     return w, h
 
 
@@ -287,12 +285,10 @@ def tail_geometry(bx, by, w, h, target, style=None) -> Tail:
     return Tail(edge, (ex, ey), tip, (tx, ty), shape, bend)
 
 
-def bubble(
-    text, bx, by, tail=None, kind="speech", max_chars=22, fs=None, pad=None, style=None
-):
+def bubble(text, bx, by, tail=None, kind="speech", max_chars=22, fs=None, style=None):
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
-    pad = st["pad"] if pad is None else pad
+    pad = st["pad"]
     lines, lh, w, h = _box(text, max_chars, fs, pad, st["em"])
     x, y = bx - w / 2, by - h / 2
     txt = _text_block(lines, bx, y + pad, fs, lh, st)

@@ -38,7 +38,7 @@ class PixelLibrary:
         return data
 
 
-def sprite_svg(grid: list[str], palette: dict[str, str], cell: float = 1.0) -> str:
+def sprite_svg(grid: list[str], palette: dict[str, str]) -> str:
     rects = []
     for r, row in enumerate(grid):
         for c, ch in enumerate(row):
@@ -46,8 +46,8 @@ def sprite_svg(grid: list[str], palette: dict[str, str], cell: float = 1.0) -> s
                 continue
             color = palette.get(ch, "#000000")
             rects.append(
-                f'<rect x="{c * cell:.2f}" y="{r * cell:.2f}" '
-                f'width="{cell:.2f}" height="{cell:.2f}" fill="{color}"/>'
+                f'<rect x="{c:.2f}" y="{r:.2f}" '
+                f'width="1.00" height="1.00" fill="{color}"/>'
             )
     return f'<g shape-rendering="crispEdges">{"".join(rects)}</g>'
 

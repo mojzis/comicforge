@@ -42,10 +42,10 @@ def _stamp() -> str:
     return datetime.now(UTC).astimezone().strftime("%Y%m%d-%H%M%S")
 
 
-def _default_out(stem: str, ext: str = ".png") -> Path:
+def _default_out(stem: str) -> Path:
     """A timestamped path inside the gitignored output dir."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return OUTPUT_DIR / f"{stem}-{_stamp()}{ext}"
+    return OUTPUT_DIR / f"{stem}-{_stamp()}.png"
 
 
 def _parse_selection(char, tokens, pose):
