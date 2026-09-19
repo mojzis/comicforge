@@ -52,7 +52,7 @@ dev = [
     "deptry",
     "biston>=0.5.0",
     "poethepoet",
-    "madoqua>=0.2.2",
+    "madoqua>=0.2.4",
     "gerenuk>=0.3.1",
     "zorilla>=0.2.1",
     "pycoati>=0.2.7",
