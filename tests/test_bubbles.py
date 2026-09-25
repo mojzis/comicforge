@@ -1,4 +1,4 @@
-from comicforge.bubbles import _wrap, bubble, bubble_size, text_width
+from comicforge.bubbles import _wrap, bubble, bubble_size, chunks, text_width
 
 
 def test_wrap_breaks_on_max_chars():
@@ -9,6 +9,40 @@ def test_wrap_breaks_on_max_chars():
 
 def test_wrap_empty_string():
     assert _wrap("", 10) == [""]
+
+
+def test_chunks_keeps_a_no_break_space_together():
+    assert chunks("do\u00a0not part") == ["do\u00a0not", "part"]
+
+
+def test_chunks_glues_a_one_letter_word_to_the_next():
+    assert chunks("vůl i osel") == ["vůl", "i\u00a0osel"]
+
+
+def test_chunks_glue_can_be_turned_off():
+    assert chunks("vůl i osel", glue_singles=False) == ["vůl", "i", "osel"]
+
+
+def test_chunks_glues_a_run_of_one_letter_words():
+    assert chunks("šel k o dům") == ["šel", "k\u00a0o\u00a0dům"]
+
+
+def test_chunks_hangs_a_trailing_one_letter_word_on_the_word_before():
+    assert chunks("nemá to k") == ["nemá", "to\u00a0k"]
+
+
+def test_chunks_of_nothing_but_one_letter_words():
+    assert chunks("a i v") == ["a\u00a0i\u00a0v"]
+
+
+def test_chunks_leaves_a_lone_digit_alone():
+    assert chunks("v roce 7 pak") == ["v\u00a0roce", "7", "pak"]
+
+
+def test_wrap_never_ends_a_line_with_a_one_letter_word():
+    # a glued chunk is one piece, so the last break-separated token is "i\u00a0osel"
+    endings = [line.split(" ")[-1] for line in _wrap("seno vůl i osel a kráva", 12)]
+    assert all(len(e) > 1 for e in endings), endings
 
 
 def test_bubble_escapes_text():

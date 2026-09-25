@@ -89,6 +89,32 @@ def test_auto_wrap_narrow_em_fits_more_per_line():
     assert narrow < caption.height(cap, width=250)
 
 
+def test_auto_wrap_keeps_a_one_letter_word_with_the_next():
+    text = "seno a vůl a osel a kráva a koza a pes a kocour"
+    endings = [
+        ln.split(" ")[-1]
+        for ln in caption.lines(
+            {"text": text}, caption.resolve_style({"max_chars": "auto"}), 200
+        )
+    ]
+    assert all(len(e) > 1 for e in endings), endings
+
+
+def test_auto_wrap_honours_an_authors_no_break_space():
+    st = caption.resolve_style({"max_chars": "auto"})
+    lines = caption.lines(
+        {"text": "prosinec 1223 v\u00a0Grecciu byl studeny mesic"}, st, 120
+    )
+    assert any("v\u00a0Grecciu" in ln for ln in lines), lines
+
+
+def test_glue_can_be_turned_off_on_one_caption():
+    st = caption.resolve_style({"max_chars": 9})
+    loose = caption.lines({"text": "vůl i osel", "glue_singles": False}, st)
+    assert loose == ["vůl i", "osel"]
+    assert caption.lines({"text": "vůl i osel"}, st) == ["vůl", "i\u00a0osel"]
+
+
 def test_auto_wrap_needs_a_width():
     with pytest.raises(ValueError, match="needs the band width"):
         caption.height({"text": LONG, "max_chars": "auto"})

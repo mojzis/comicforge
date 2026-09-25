@@ -260,6 +260,8 @@ bubbles: [ ... ]
                     #           kept inside the panel.
   to: [0.4, 0.5]    # OPTIONAL tail target (panel fraction); else speaker's head
   max_chars: 22     # wrap width (optional)
+  glue_singles: false  # OPTIONAL let a one-letter word end a line (default: it
+                    #          is tied to the next word; see Line breaks below)
   fs: 16            # font size px (optional; overrides bubble_style.font_size)
   uppercase: true   # OPTIONAL: force this bubble's text to CAPS
                     #           (overrides bubble_style.uppercase)
@@ -298,8 +300,18 @@ along the bottom of the panel, inside the frame, separated from the art by a
 hairline in the frame colour. The art box shrinks to make room, so bubble and
 actor coordinates stay relative to the picture. Page-wide look via
 `caption_style` (`font`, `font_size`, `ink`, `bg`, `pad`, `max_chars`,
-`align: left|center`, `rule`, `uppercase`); `comicforge.caption.height(text, style)` tells
+`align: left|center`, `rule`, `uppercase`, `glue_singles`);
+`comicforge.caption.height(text, style)` tells
 you how tall a band will be, for sizing rows.
+
+**Line breaks.** Wrapping breaks between words, with two exceptions, in bubbles
+and captions alike. A one-letter word is tied to the word after it, because
+Czech typography does not leave a one-letter preposition or conjunction
+(`k s v z o u a i`) at the end of a line — set `glue_singles: false` on the
+style or the line to allow it. A no-break space (`U+00A0`, or `U+202F`) is
+never broken at, so type one to tie words the automatic rule cannot know about
+(`v roce 1223`, a name and its title). Ordinary runs of spaces and newlines
+still collapse to one space.
 
 `thought` draws an ellipse with a trail of dots; `shout` draws a spiky burst.
 The tail is a slim wedge dropping from the bubble underside; its tip is capped

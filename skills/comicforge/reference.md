@@ -630,10 +630,17 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
   frame: a string or `{text, max_chars}`; page-wide `caption_style` with
   `font`, `font_size`, `ink`, `bg`, `pad`, `max_chars` (a count, or `auto` to
   wrap to the band's width), `em` (width scale of the `auto` measure),
-  `align`, `rule`, `uppercase`),
+  `align`, `rule`, `uppercase`, `glue_singles`),
   `scene`, `image`, `actors`, `pixel`, `bubbles`, `speakers` (`{name: [x, y]}`
   head points in panel fractions that bubbles' `speaker:` resolves to when no
   actor has that char) — `validate` flags any other panel key as a typo
+- **Line breaking** (bubbles and captions): a one-letter word is tied to the
+  word after it with a no-break space, so a Czech one-letter preposition or
+  conjunction (`k s v z o u a i`) never ends a line; `glue_singles: false` on
+  the style or the individual line turns that off. A no-break space in the
+  text (`U+00A0`, `U+202F`) is never a break point, which is how an author
+  ties words the rule cannot know about. Other whitespace runs collapse to one
+  space.
 - **Image keys**: `image: path.png` or `image: {src:, fit:, at:, crop:}` with
   `fit: cover` (default; scale-to-fill + centre-crop) or `contain`
   (fit inside + letterbox); `at:` (`t`, `b`, `l`, `r`, `tl`, `tr`, `bl`, `br`,
@@ -647,8 +654,9 @@ For the full spec grammar, see [SKILL.md](SKILL.md). Key points:
 - **Actor keys**: `char`, `pose` (optional; defaults to the character's default
   pose), per-slot variant keys (`face`, `arms`, etc.), `x`, `y`, `scale`, `flip`
 - **Bubble keys**: `text`, `kind` (speech/thought/shout), `speaker`, optional
-  `at`/`x`/`y`/`to`/`max_chars`/`fs`/`uppercase` (`fs` and `uppercase` override
-  the page-level `bubble_style`). Omit `y` and bubbles stack down by their
+  `at`/`x`/`y`/`to`/`max_chars`/`fs`/`uppercase`/`glue_singles` (`fs`,
+  `uppercase` and `glue_singles` override the page-level `bubble_style`).
+  Omit `y` and bubbles stack down by their
   measured height without overlapping; omit `x` and they centre (or sit above
   their `speaker`). `at` hugs a corner or edge instead — `tl`, `t`, `tr`, `l`,
   `c`, `r`, `bl`, `b`, `br` — and each column keeps its own top and bottom

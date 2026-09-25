@@ -7,11 +7,18 @@ All coordinates here are absolute page px. A bubble is positioned by its centre
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
 FONT = "DejaVu Sans, Helvetica, Arial, sans-serif"
 INK = "#21304a"
+
+NBSP = "\u00a0"
+NNBSP = "\u202f"  # narrow no-break space
+# Whitespace a line may break at: all of it except the no-break spaces, which
+# are how an author ties two words together by hand.
+_BREAK = re.compile(rf"[^\S{NBSP}{NNBSP}]+")
 
 # `at:` anchor -> (horizontal, vertical) edge: l/c/r x t/c/b. Bubbles use it to
 # hug a corner of the panel; a raster image uses it to pick which part survives
@@ -40,6 +47,7 @@ DEFAULT_STYLE = {
     "tail_gap": 12,  # `line` only: px left between the line's end and its target
     "tail_from": None,  # where the tail leaves the bubble, see `tail_from`
     "tail_bend": None,  # curve / line: -1..1, 0 straight; None = the layout picks
+    "glue_singles": True,  # never end a line with a one-letter word, see `chunks`
 }
 
 # wedge: a slim, short straight tail; curve: a longer tapered tail with curved
@@ -67,9 +75,43 @@ def resolve_style(*layers) -> dict:
     return merge_style(DEFAULT_STYLE, *layers)
 
 
-def _wrap(text: str, max_chars: int) -> list[str]:
+def squeeze(text: str) -> str:
+    """Collapse runs of breaking whitespace to one space, keeping no-break ones."""
+    return _BREAK.sub(" ", text).strip()
+
+
+def chunks(text: str, glue_singles: bool = True) -> list[str]:
+    """*text* as the pieces a wrap is allowed to split between.
+
+    Breaking whitespace separates pieces; a no-break space never does, so
+    ``"do\\u00a0not part"`` wraps as two pieces, not three. With *glue_singles*
+    a one-letter word is tied to the word after it as well, because Czech
+    typography does not leave a one-letter preposition or conjunction
+    ("k", "s", "v", "z", "o", "u", "a", "i") hanging at the end of a line.
+    """
+    words = [w for w in _BREAK.split(text.strip()) if w]
+    if not glue_singles:
+        return words
+    out: list[str] = []
+    held: list[str] = []  # single letters waiting for a word to hang onto
+    for word in words:
+        if len(word) == 1 and word.isalpha():
+            held.append(word)
+        else:
+            out.append(NBSP.join([*held, word]))
+            held = []
+    if held:  # trailing singles have no next word, so they join the previous one
+        tail = NBSP.join(held)
+        if out:
+            out[-1] = f"{out[-1]}{NBSP}{tail}"
+        else:
+            out.append(tail)
+    return out
+
+
+def _wrap(text: str, max_chars: int, glue_singles: bool = True) -> list[str]:
     lines, cur = [], ""
-    for word in text.split():
+    for word in chunks(text, glue_singles):
         if cur and len(cur) + 1 + len(word) > max_chars:
             lines.append(cur)
             cur = word
@@ -103,9 +145,9 @@ def text_width(text: str, fs: float) -> float:
     return sum(em(ch) for ch in text) * fs
 
 
-def _box(text, max_chars, fs, pad, em=1.0):
+def _box(text, max_chars, fs, pad, em=1.0, glue_singles=True):
     """Wrap *text* and return (lines, line_height, body_width, body_height)."""
-    lines = _wrap(text, max_chars)
+    lines = _wrap(text, max_chars, glue_singles)
     lh = fs * 1.25
     longest = max((text_width(ln, fs) * em for ln in lines), default=fs)
     w = max(longest + 2 * pad, 60)
@@ -125,7 +167,9 @@ def bubble_size(text, kind="speech", max_chars=22, fs=None, style=None):
     """
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
-    _lines, _lh, w, h = _box(text, max_chars, fs, st["pad"], st["em"])
+    _lines, _lh, w, h = _box(
+        text, max_chars, fs, st["pad"], st["em"], st["glue_singles"]
+    )
     ow, oh = _OUTSET.get(kind, (0, 0))
     return w + ow, h + oh
 
@@ -154,7 +198,9 @@ def body_size(text, max_chars=22, fs=None, style=None):
     """(width, height) of the text body a bubble's tail is measured against."""
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
-    _lines, _lh, w, h = _box(text, max_chars, fs, st["pad"], st["em"])
+    _lines, _lh, w, h = _box(
+        text, max_chars, fs, st["pad"], st["em"], st["glue_singles"]
+    )
     return w, h
 
 
@@ -289,7 +335,7 @@ def bubble(text, bx, by, tail=None, kind="speech", max_chars=22, fs=None, style=
     st = resolve_style(style)
     fs = st["font_size"] if fs is None else fs
     pad = st["pad"]
-    lines, lh, w, h = _box(text, max_chars, fs, pad, st["em"])
+    lines, lh, w, h = _box(text, max_chars, fs, pad, st["em"], st["glue_singles"])
     x, y = bx - w / 2, by - h / 2
     txt = _text_block(lines, bx, y + pad, fs, lh, st)
 

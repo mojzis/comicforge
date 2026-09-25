@@ -116,6 +116,7 @@ Drawn in list order — later actors cover earlier ones.
 | `y` | stacked below the previous bubble | Centre, fraction of panel height |
 | `to` | speaker's head | Tail target `[x, y]` in panel fractions |
 | `max_chars` | `22` | Wrap width in characters |
+| `glue_singles` | `bubble_style.glue_singles` | Keep a one-letter word with the word after it |
 | `fs` | `bubble_style.font_size` | Font size in px for this bubble |
 | `uppercase` | `bubble_style.uppercase` | Force this bubble to caps |
 | `tail` | `bubble_style.tail` | `wedge`, `curve`, `line` or `none` — any `kind` |
@@ -172,6 +173,7 @@ caption: {text: "Rain came.", max_chars: 26}
 | `bg` | `#ffffff` | Band colour |
 | `pad` | `8` | Text inset from the band edge |
 | `max_chars` | `60` | Wrap width in characters |
+| `glue_singles` | `true` | Never end a line with a one-letter word — see [Line breaks](../guide/captions-frames.md#line-breaks) |
 | `align` | `left` | `left` or `center` |
 | `rule` | `true` | Hairline between art and band, in the frame colour |
 | `uppercase` | `false` | Render caption text in caps |

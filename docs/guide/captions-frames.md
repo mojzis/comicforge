@@ -61,6 +61,33 @@ estimate is tuned for DejaVu Sans; for a narrower font set `em` below `1`
 caption_style: {max_chars: auto, em: 0.95}
 ```
 
+### Line breaks
+
+Wrapping breaks between words, with two exceptions.
+
+**A one-letter word never ends a line.** Czech typography does not leave a
+one-letter preposition or conjunction (`k s v z o u a i`) hanging at the end of
+a line, so the wrap ties it to the word after it:
+
+```text
+… putovaly jesle, seno, vůl        … putovaly jesle, seno, vůl i
+i osel. Osel měl vlastní názor.    osel. Osel měl vlastní názor.
+  ^ default                          ^ glue_singles: false
+```
+
+**A no-break space is never broken at.** Type a `U+00A0` (or `U+202F`) in the
+text and the words around it stay on one line — use it for the ties the
+automatic rule cannot know about, such as `1223` in `v roce 1223` or a name
+and its title.
+
+Both apply to bubbles and captions alike, and both are switched off per page or
+per line with `glue_singles: false`:
+
+```yaml
+caption_style: {glue_singles: false}
+bubble_style:  {glue_singles: false}
+```
+
 !!! warning "Actors draw over the band"
 
     The band is painted early, before the figures, so an actor placed low enough
